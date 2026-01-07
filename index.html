@@ -52,9 +52,29 @@
             border-radius: 10px;
             transition: all 0.2s;
         }
+
+        /* LOGIN MODAL (simple, full-screen, blocks UI) */
+        .login-backdrop { background: rgba(0,0,0,0.55); z-index: 99999; }
+        .login-modal { max-width:420px; width:95%; margin: 16px; border-radius: 10px; }
+        .login-hidden { display:none; }
     </style>
 </head>
 <body class="flex flex-col md:flex-row min-h-screen">
+
+    <!-- LOGIN MODAL (inserted with minimal impact) -->
+    <div id="loginModal" class="fixed inset-0 hidden items-center justify-center login-backdrop login-hidden">
+      <div class="login-modal bg-white p-6 text-left text-sm rounded shadow-lg">
+        <h2 class="text-2xl font-semibold mb-4 text-center text-gray-800">Iniciar sesión</h2>
+
+        <label for="loginEmail" class="block mb-1 text-sm font-medium text-gray-600">Email</label>
+        <input id="loginEmail" class="w-full border mt-1 border-gray-300 focus:border-indigo-500 outline-none rounded py-2.5 px-3" type="email" placeholder="Ingresa tu email">
+
+        <button id="loginSubmit" class="w-full mt-4 bg-gray-800 text-white py-2.5 rounded font-bold">Entrar</button>
+
+        <p class="text-xs text-center text-slate-500 mt-3">Las cuentas válidas se definen en <code>users.json</code> (en el mismo directorio).</p>
+        <div id="loginFeedback" class="text-sm text-red-500 text-center mt-2"></div>
+      </div>
+    </div>
 
     <div id="toast-container"></div>
 
@@ -476,6 +496,7 @@
             window.print();
         }
 
+        // NUEVA IMPLEMENTACIÓN: generar imagen del recibo y compartir / copiar / descargar según capacidades
         async function sendWhatsApp(id) {
             const t = txs.find(x => x.id === id);
             if (!t) { showToast('error', 'Registro no encontrado'); return; }
@@ -483,8 +504,10 @@
             const fallbackText = `📜 VERSAT PRO - RECIBO DIGITAL\n\nID: ${t.id}\nFecha: ${t.date} (${t.time})\nCategoría: ${t.cat}\nDetalle: ${t.desc}\nTotal: ${format(t.val)}\n\n¡Gracias por su gestión!`;
 
             try {
+                // 1) Construir elemento visual del recibo (offscreen)
                 const receiptEl = buildReceiptElement(t);
 
+                // 2) Capturar con html2canvas (fondo blanco, mejor resolución)
                 const canvas = await html2canvas(receiptEl, { backgroundColor: '#ffffff', scale: 2 });
 
                 // 3) Obtener Blob PNG
@@ -504,6 +527,7 @@
                     return;
                 }
 
+                // 5) Intento: copiar imagen al portapapeles (escritorio con soporte)
                 if (navigator.clipboard && navigator.clipboard.write) {
                     try {
                         const clipboardItem = new ClipboardItem({ 'image/png': blob });
@@ -513,9 +537,11 @@
                         return;
                     } catch (errClipboard) {
                         console.warn('Clipboard write falló:', errClipboard);
+                        // seguir a fallback
                     }
                 }
 
+                // 6) Fallback: descargar la imagen y abrir chat con texto prellenado
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -535,6 +561,7 @@
             }
         }
 
+        // Construye un elemento DOM (offscreen) con estilo sencillo del recibo y lo añade al body (devuelve el elemento)
         function buildReceiptElement(t) {
             const wrapper = document.createElement('div');
             wrapper.style.position = 'fixed';
@@ -550,6 +577,7 @@
             wrapper.style.borderRadius = '12px';
             wrapper.style.lineHeight = '1.2';
 
+            // Estructura simple que se verá bien en la imagen
             wrapper.innerHTML = `
                 <div style="text-align:center; margin-bottom:12px;">
                     <div style="font-weight:800; font-size:20px;">VERSAT PRO - RECIBO</div>
@@ -644,5 +672,65 @@
         updateButtons();
         renderDashboard();
     </script>
+
+    <!-- AUTH SCRIPT (minimal: only shows modal and validates email against users.json; does NOT change app code) -->
+    <script>
+      (function(){
+        const modal = document.getElementById('loginModal');
+        const emailInput = document.getElementById('loginEmail');
+        const submitBtn = document.getElementById('loginSubmit');
+        const feedback = document.getElementById('loginFeedback');
+        const USERS_JSON = 'users.json';
+
+        function showModal() { modal.classList.remove('login-hidden'); modal.classList.add('flex'); setTimeout(()=> emailInput.focus(),50); }
+        function hideModal() { modal.classList.add('login-hidden'); modal.classList.remove('flex'); feedback.textContent = ''; }
+
+        async function loadUsers(){
+          try {
+            const res = await fetch(USERS_JSON + '?v=' + Date.now());
+            if (!res.ok) throw new Error('no users.json');
+            const j = await res.json();
+            if (Array.isArray(j)) return j;
+          } catch(e){
+            // fallback: allow two test emails
+            return [
+              { id: 'U1', email: 'admin@example.com', name: 'Admin User' },
+              { id: 'U2', email: 'vendedor@example.com', name: 'Vendedor José' }
+            ];
+          }
+        }
+
+        async function attemptLogin(){
+          feedback.textContent = '';
+          const email = (emailInput.value || '').trim().toLowerCase();
+          if (!email) { feedback.textContent = 'Ingresa un email válido'; return; }
+          const users = await loadUsers();
+          const found = users.find(u => (u.email||'').toLowerCase() === email);
+          if (found) {
+            // success
+            localStorage.setItem('vp_user_email', email);
+            hideModal();
+          } else {
+            feedback.textContent = 'Email no registrado. Agrega el email en users.json y recarga.';
+          }
+        }
+
+        // auto-open modal if not logged
+        window.addEventListener('load', async () => {
+          const stored = (localStorage.getItem('vp_user_email') || '').toLowerCase();
+          if (stored) {
+            // verify stored against users.json; if valid, don't show modal
+            const users = await loadUsers();
+            const ok = users.find(u => (u.email||'').toLowerCase() === stored);
+            if (ok) return; // keep app as-is
+            localStorage.removeItem('vp_user_email');
+          }
+          showModal();
+        });
+
+        submitBtn.addEventListener('click', attemptLogin);
+        emailInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+      })();
+    </script>
 </body> 
-                                    </html>
+</html>
