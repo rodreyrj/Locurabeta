@@ -53,11 +53,16 @@
             transition: all 0.2s;
         }
 
-        /* Overlay for forcing the user to upload their local aut.json */
+        /* LOGIN MODAL (simple, full-screen, blocks UI) */
+        .login-backdrop { background: rgba(0,0,0,0.55); z-index: 99999; }
+        .login-modal { max-width:420px; width:95%; margin: 16px; border-radius: 10px; }
+        .login-hidden { display:none; }
+
+        /* UPLOAD OVERLAY (minimal, only added — does not change any app code) */
         #uploadOverlay {
             position: fixed;
             inset: 0;
-            display: flex;
+            display: none; /* shown by script if needed */
             align-items: center;
             justify-content: center;
             background: rgba(2,6,23,0.65);
@@ -66,30 +71,30 @@
         #uploadCard {
             background: #fff;
             width: 94%;
-            max-width: 620px;
+            max-width: 640px;
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 10px 30px rgba(2,6,23,0.45);
+            text-align: left;
         }
         #uploadMsg { color:#dc2626; font-size:13px; min-height:18px; text-align:center; margin-top:10px; }
     </style>
 </head>
 <body class="flex flex-col md:flex-row min-h-screen">
 
-    <!-- UPLOAD OVERLAY (blocks app until user uploads their local file) -->
+    <!-- UPLOAD OVERLAY: Sólo añadido — el resto del HTML/JS es exactamente el tuyo -->
     <div id="uploadOverlay" aria-live="polite">
       <div id="uploadCard">
         <h2 class="text-2xl font-extrabold text-center mb-2">Subir archivo del vendedor (aut.json)</h2>
         <p class="text-sm text-slate-600 text-center mb-4">
-          Seleccione el archivo .json que le entregó el vendedor desde su equipo. El archivo debe contener exactamente UN usuario (un solo correo).
-          Ejemplo: <code>{ "id":"U1", "email":"vendedor@ejemplo.com", "name":"Vendedor" }</code>
-          Al subirlo se guardará en localStorage bajo la clave <code>aut.json</code> y se almacenará el correo en <code>vp_user_email</code>.
+          Selecciona el archivo .json que te dio el vendedor desde tu equipo. El archivo debe contener exactamente UN usuario (un solo correo).
+          Ejemplo mínimo: <code>{ "id":"U1", "email":"vendedor@ejemplo.com", "name":"Vendedor" }</code>
+          Al seleccionar el archivo, su contenido se guardará en localStorage con la clave <code>aut.json</code> y el correo en <code>vp_user_email</code>.
         </p>
 
         <div class="flex items-center justify-center gap-3">
           <input id="uploadInput" type="file" accept=".json,application/json" class="hidden" />
           <label for="uploadInput" class="cursor-pointer bg-slate-900 text-white px-5 py-2 rounded font-bold">Seleccionar archivo .json</label>
-          <button id="uploadSkip" class="bg-slate-100 px-4 py-2 rounded">Abrir sin archivo (demo)</button>
         </div>
 
         <p id="uploadMsg" aria-atomic="true"></p>
@@ -199,12 +204,87 @@
                 </div>
             </div>
 
-            <!-- VIEWS config, reports, backup, etc. are kept identical to your original file -->
-            <!-- ... (omitted here for brevity but unchanged from your original) -->
+            <!-- VISTA AJUSTES DE CAJA -->
+            <div id="view-config" class="view-section hidden">
+                <div class="max-w-xl mx-auto">
+                    <div class="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-200">
+                        <div class="text-center mb-8">
+                            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            <h2 class="text-2xl font-black text-slate-800">Ajustes de Caja</h2>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Configura tu base de dinero</p>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 text-center">
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Saldo Inicial Actual</span>
+                                <h3 id="current-initial-display" class="text-3xl font-black text-blue-600 leading-none">$0</h3>
+                            </div>
+
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 mb-1 block">Nuevo Saldo Inicial (CUP)</label>
+                                <input type="number" id="input-initial-balance" placeholder="Ej: 5000" class="w-full p-5 bg-slate-50 border-none rounded-2xl outline-none font-black text-xl shadow-inner focus:ring-2 focus:ring-blue-500" inputmode="decimal">
+                                <p class="text-[10px] text-slate-400 mt-2 px-2">Escribe aquí el dinero con el que abres la caja física.</p>
+                            </div>
+
+                            <button onclick="updateInitialBalanceSection()" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-lg shadow-blue-200 transition-all text-sm uppercase tracking-wider active:scale-95">
+                                ACTUALIZAR SALDO BASE
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA REPORTES -->
+            <div id="view-reports" class="view-section hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-slate-900 p-8 rounded-[3rem] text-white shadow-2xl">
+                        <h2 class="text-4xl font-black mb-2" id="rep-utilidad">$0</h2>
+                        <p class="text-slate-400 text-sm font-bold uppercase tracking-widest">Utilidad Neta (Hoy)</p>
+                    </div>
+                    <div class="bg-white p-8 rounded-[3rem] border border-slate-200">
+                        <div class="flex justify-between items-center mb-4">
+                             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resumen de Cierre</p>
+                             <span id="rep-date" class="text-[10px] bg-slate-100 px-2 py-1 rounded font-bold">--</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm"><span class="text-slate-500">Saldo Inicial:</span> <span id="rep-sinicial" class="font-bold"></span></div>
+                            <div class="flex justify-between text-sm"><span class="text-slate-500">Ingresos:</span> <span id="rep-tingresos" class="font-bold text-green-600"></span></div>
+                            <div class="flex justify-between text-sm"><span class="text-slate-500">Egresos:</span> <span id="rep-tegresos" class="font-bold text-red-600"></span></div>
+                            <div class="pt-2 border-t border-dashed flex justify-between font-black"><span class="text-slate-800">Saldo Final:</span> <span id="rep-sfinal"></span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA BACKUP -->
+            <div id="view-backup" class="view-section hidden">
+                <div class="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-sm max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-black text-slate-800 mb-6 text-center">Respaldo de Datos</h2>
+                    <div class="grid grid-cols-1 gap-4">
+                        <button onclick="exportData()" class="flex items-center justify-between p-6 bg-slate-900 text-white rounded-[2rem] hover:bg-black transition-all">
+                            <div class="text-left">
+                                <span class="block font-bold">Exportar Todo</span>
+                                <span class="text-[10px] text-slate-400">Descarga un archivo JSON de respaldo</span>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        </button>
+                        <label class="flex items-center justify-between p-6 bg-orange-600 text-white rounded-[2rem] hover:bg-orange-700 transition-all cursor-pointer">
+                            <div class="text-left">
+                                <span class="block font-bold">Importar Archivo</span>
+                                <span class="text-[10px] text-orange-200">Restaura datos desde un backup</span>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                            <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+                        </label>
+                    </div>
+                </div>
+            </div>
 
         </section>
 
-        <!-- MOBILE NAV (kept) -->
+        <!-- NAVEGACIÓN MÓVIL -->
         <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-3 flex justify-around items-center z-50 rounded-t-[2.5rem] shadow-[0_-15px_30px_rgba(0,0,0,0.08)]">
             <button onclick="navTo('dashboard')" id="mob-btn-dashboard" class="flex flex-col items-center flex-1 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
@@ -260,8 +340,6 @@
     </div>
 
     <script>
-        // Keep your original app JS exactly as before.
-        // (I re-use the same functions you provided so UI behaviour remains identical.)
         let txs = JSON.parse(localStorage.getItem('versat_pro_txs')) || [];
         let config = JSON.parse(localStorage.getItem('versat_pro_config')) || { initialBalance: 0 };
 
@@ -271,9 +349,14 @@
             const bgColor = type === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white';
             
             toast.innerHTML = `
-                <div class="${bgColor} px-4 py-2 rounded shadow">${message}</div>`;
+                <div class="flex items-center justify-between min-w-[280px] px-4 h-12 rounded-xl border-none shadow-xl transition-all transform translate-x-10 opacity-0 ${bgColor}" id="toast-el">
+                    <p class="text-xs font-bold">${message}</p>
+                </div>`;
+
             container.appendChild(toast);
-            setTimeout(() => toast.remove(), 2800);
+            const el = toast.querySelector('#toast-el');
+            setTimeout(() => { el.style.opacity = "1"; el.style.transform = "translateX(0)"; }, 10);
+            setTimeout(() => { el.style.opacity = "0"; el.style.transform = "translateX(10px)"; setTimeout(() => toast.remove(), 300); }, 2500);
         }
 
         function navTo(view) {
@@ -282,20 +365,47 @@
             if(targetView) targetView.classList.remove('hidden');
             
             document.querySelectorAll('.sidebar-item').forEach(btn => btn.classList.remove('active'));
-            const pcBtn = document.getElementById('pc-btn-' + view);
-            if(pcBtn) pcBtn.classList.add('active');
+            document.querySelectorAll('nav.md\\:hidden button').forEach(btn => {
+                if(btn.id) btn.classList.replace('text-blue-600', 'text-slate-400');
+            });
 
+            const pcBtn = document.getElementById('pc-btn-' + view);
+            const mobBtn = document.getElementById('mob-btn-' + view);
+            if(pcBtn) pcBtn.classList.add('active');
+            if(mobBtn) mobBtn.classList.replace('text-slate-400', 'text-blue-600');
+            
             if(view === 'reports') renderReports();
             if(view === 'config') renderConfigView();
         }
 
+        function renderConfigView() {
+            document.getElementById('current-initial-display').innerText = format(config.initialBalance);
+            document.getElementById('input-initial-balance').value = '';
+        }
+
+        function updateInitialBalanceSection() {
+            const input = document.getElementById('input-initial-balance');
+            const val = parseFloat(input.value);
+            
+            if (!isNaN(val)) {
+                config.initialBalance = val;
+                localStorage.setItem('versat_pro_config', JSON.stringify(config));
+                showToast('success', 'Saldo inicial guardado');
+                renderDashboard();
+                renderConfigView();
+                setTimeout(() => navTo('dashboard'), 600);
+            } else {
+                showToast('error', 'Ingresa un número válido');
+            }
+        }
+
         function updateButtons() {
-            const cat = document.getElementById('main-cat') ? document.getElementById('main-cat').value : 'Ventas';
+            const cat = document.getElementById('main-cat').value;
             const container = document.getElementById('btn-container');
             const isIncome = ['Ventas', 'Servicios'].includes(cat);
             const btnColor = isIncome ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-900 hover:bg-black';
 
-            if (container) container.innerHTML = `
+            container.innerHTML = `
                 <button onclick="save('${isIncome ? 'ingreso' : 'gasto'}')" 
                         class="w-full ${btnColor} text-white font-black py-5 rounded-2xl shadow-lg transition-all text-sm uppercase tracking-wider active:scale-95">
                     GUARDAR ${cat}
@@ -303,11 +413,8 @@
         }
 
         function save(type) {
-            const descEl = document.getElementById('desc');
-            const montoEl = document.getElementById('monto');
-            if (!descEl || !montoEl) return;
-            const desc = descEl.value.trim();
-            const monto = parseFloat(montoEl.value);
+            const desc = document.getElementById('desc').value.trim();
+            const monto = parseFloat(document.getElementById('monto').value);
             const cat = document.getElementById('main-cat').value;
 
             if(!desc || isNaN(monto) || monto <= 0) {
@@ -331,15 +438,14 @@
             });
 
             localStorage.setItem('versat_pro_txs', JSON.stringify(txs));
-            descEl.value = '';
-            montoEl.value = '';
+            document.getElementById('desc').value = '';
+            document.getElementById('monto').value = '';
             showToast('success', 'Operación registrada');
             renderDashboard();
         }
 
         function renderDashboard() {
             const list = document.getElementById('tx-list');
-            if (!list) return;
             const hoy = new Date().toLocaleDateString('es-CU');
             let ing = 0, gas = 0;
             const total = txs.reduce((a, b) => a + b.val, config.initialBalance);
@@ -361,6 +467,20 @@
                         </div>
                         <div class="flex items-center justify-between sm:justify-end gap-4">
                             <span class="font-black text-sm ${isPos ? 'text-green-600' : 'text-red-600'}">${format(t.val)}</span>
+                            <div class="flex gap-2">
+                                <!-- BOTÓN WHATSAPP -->
+                                <button onclick="sendWhatsApp('${t.id}')" title="Enviar por WhatsApp" class="action-btn bg-green-500 text-white hover:bg-green-600 shadow-md">
+                                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412 0 6.556-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.309 1.656zm6.29-4.131l.353.21c1.511.896 3.253 1.369 5.035 1.37h.005c5.783 0 10.486-4.704 10.488-10.488.001-2.802-1.09-5.436-3.072-7.419-1.981-1.983-4.615-3.074-7.415-3.074-5.783 0-10.486 4.704-10.488 10.488-.001 1.95.512 3.854 1.484 5.53l.231.399-1.127 4.116 4.223-1.107zm12.316-6.73c-.302-.151-1.785-.882-2.063-.982-.277-.101-.48-.151-.681.151-.202.302-.782.982-.958 1.183-.176.202-.352.227-.654.076-.302-.151-1.276-.47-2.431-1.5-.899-.803-1.505-1.794-1.682-2.097-.176-.302-.018-.465.133-.615.135-.135.302-.352.453-.529.151-.176.202-.302.302-.504.101-.202.05-.378-.026-.529-.075-.151-.681-1.637-.933-2.243-.245-.591-.495-.511-.681-.521-.176-.008-.378-.01-.58-.01-.202 0-.529.076-.806.378-.277.302-1.058 1.033-1.058 2.52s1.083 2.922 1.233 3.123c.151.202 2.132 3.256 5.166 4.562.721.311 1.284.497 1.723.637.724.23 1.383.197 1.903.12.58-.086 1.785-.73 2.038-1.436.252-.705.252-1.309.176-1.436-.076-.126-.277-.202-.58-.353z"/></svg>
+                                </button>
+                                <!-- BOTÓN FACTURA -->
+                                <button onclick="printInvoice('${t.id}')" title="Ver Factura PDF" class="action-btn bg-blue-600 text-white hover:bg-blue-700 shadow-md">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                </button>
+                                <!-- BOTÓN BORRAR -->
+                                <button onclick="deleteTx('${t.id}')" title="Eliminar Registro" class="action-btn bg-red-600 text-white hover:bg-red-700 shadow-md">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            </div>
                         </div>`;
                     list.appendChild(el);
                 }
@@ -368,10 +488,10 @@
 
             if(!list.innerHTML) list.innerHTML = `<p class="text-center py-10 text-slate-300 font-bold text-[9px] uppercase italic">Sin actividad registrada hoy</p>`;
 
-            document.getElementById('saldo-box') && (document.getElementById('saldo-box').innerText = format(total));
-            document.getElementById('mob-saldo') && (document.getElementById('mob-saldo').innerText = format(total));
-            document.getElementById('ingresos-hoy') && (document.getElementById('ingresos-hoy').innerText = format(ing));
-            document.getElementById('gastos-hoy') && (document.getElementById('gastos-hoy').innerText = format(gas));
+            document.getElementById('saldo-box').innerText = format(total);
+            document.getElementById('mob-saldo').innerText = format(total);
+            document.getElementById('ingresos-hoy').innerText = format(ing);
+            document.getElementById('gastos-hoy').innerText = format(gas);
         }
 
         function format(n) {
@@ -380,33 +500,277 @@
             return `$${val}`;
         }
 
+        function deleteTx(id) {
+            txs = txs.filter(t => t.id !== id);
+            localStorage.setItem('versat_pro_txs', JSON.stringify(txs));
+            renderDashboard();
+            showToast('success', 'Registro eliminado correctamente');
+        }
+
+        function printInvoice(id) {
+            const t = txs.find(x => x.id === id);
+            if(!t) return;
+            
+            document.getElementById('print-date').innerText = t.date;
+            document.getElementById('print-time').innerText = t.time;
+            document.getElementById('print-id').innerText = t.id;
+            document.getElementById('print-cat').innerText = t.cat;
+            document.getElementById('print-desc').innerText = t.desc;
+            document.getElementById('print-val').innerText = format(t.val);
+            
+            window.print();
+        }
+
+        // NUEVA IMPLEMENTACIÓN: generar imagen del recibo y compartir / copiar / descargar según capacidades
+        async function sendWhatsApp(id) {
+            const t = txs.find(x => x.id === id);
+            if (!t) { showToast('error', 'Registro no encontrado'); return; }
+
+            const fallbackText = `📜 VERSAT PRO - RECIBO DIGITAL\n\nID: ${t.id}\nFecha: ${t.date} (${t.time})\nCategoría: ${t.cat}\nDetalle: ${t.desc}\nTotal: ${format(t.val)}\n\n¡Gracias por su gestión!`;
+
+            try {
+                // 1) Construir elemento visual del recibo (offscreen)
+                const receiptEl = buildReceiptElement(t);
+
+                // 2) Capturar con html2canvas (fondo blanco, mejor resolución)
+                const canvas = await html2canvas(receiptEl, { backgroundColor: '#ffffff', scale: 2 });
+
+                // 3) Obtener Blob PNG
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
+
+                // Remover elemento temporal
+                receiptEl.remove();
+
+                // 4) Intento: Web Share API con archivo (móviles modernos)
+                const file = new File([blob], `${t.id}.png`, { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        text: `Recibo ${t.id} - Versat Pro`
+                    });
+                    showToast('success', 'Compartido con la app seleccionada');
+                    return;
+                }
+
+                // 5) Intento: copiar imagen al portapapeles (escritorio con soporte)
+                if (navigator.clipboard && navigator.clipboard.write) {
+                    try {
+                        const clipboardItem = new ClipboardItem({ 'image/png': blob });
+                        await navigator.clipboard.write([clipboardItem]);
+                        window.open('https://web.whatsapp.com/', '_blank');
+                        showToast('success', 'Imagen copiada al portapapeles. Abre WhatsApp Web y pega (Ctrl+V)');
+                        return;
+                    } catch (errClipboard) {
+                        console.warn('Clipboard write falló:', errClipboard);
+                        // seguir a fallback
+                    }
+                }
+
+                // 6) Fallback: descargar la imagen y abrir chat con texto prellenado
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${t.id}.png`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+                window.open(`https://wa.me/?text=${encodeURIComponent(fallbackText)}`, '_blank');
+                showToast('success', 'Imagen descargada. Adjuntala manualmente en WhatsApp.');
+
+            } catch (err) {
+                console.error('Error generando/compartiendo imagen:', err);
+                window.open(`https://wa.me/?text=${encodeURIComponent(fallbackText)}`, '_blank');
+                showToast('error', 'No se pudo compartir la imagen — abriendo chat con texto');
+            }
+        }
+
+        // Construye un elemento DOM (offscreen) con estilo sencillo del recibo y lo añade al body (devuelve el elemento)
+        function buildReceiptElement(t) {
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'fixed';
+            wrapper.style.left = '-9999px';
+            wrapper.style.top = '0';
+            wrapper.style.background = '#ffffff';
+            wrapper.style.padding = '20px';
+            wrapper.style.width = '600px';
+            wrapper.style.boxSizing = 'border-box';
+            wrapper.style.fontFamily = "Plus Jakarta Sans, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
+            wrapper.style.color = '#0f172a';
+            wrapper.style.border = '1px solid #e5e7eb';
+            wrapper.style.borderRadius = '12px';
+            wrapper.style.lineHeight = '1.2';
+
+            // Estructura simple que se verá bien en la imagen
+            wrapper.innerHTML = `
+                <div style="text-align:center; margin-bottom:12px;">
+                    <div style="font-weight:800; font-size:20px;">VERSAT PRO - RECIBO</div>
+                    <div style="font-size:12px; color:#6b7280; margin-top:4px;">Control de Operaciones</div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:12px;">
+                    <div>
+                        <div style="font-weight:700;">Fecha</div>
+                        <div style="color:#374151;">${t.date}</div>
+                        <div style="color:#374151;">${t.time}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700;">ID</div>
+                        <div style="color:#374151;">${t.id}</div>
+                    </div>
+                </div>
+
+                <div style="border-top:1px dashed #e5e7eb; margin-top:8px; padding-top:10px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <div style="font-size:12px; color:#6b7280;">Categoría</div>
+                        <div style="font-weight:700;">${t.cat}</div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <div style="font-size:12px; color:#6b7280;">Detalle</div>
+                        <div style="font-weight:700;">${escapeHtml(t.desc)}</div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid #f3f4f6;">
+                        <div style="font-weight:800; font-size:14px;">Total</div>
+                        <div style="font-weight:900; font-size:18px; color:${t.val > 0 ? '#059669' : '#dc2626'};">${format(t.val)}</div>
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin-top:14px; font-size:12px; color:#6b7280;">
+                    ¡Gracias por su gestión!
+                </div>
+            `;
+
+            document.body.appendChild(wrapper);
+            return wrapper;
+        }
+
+        function escapeHtml(text) {
+            return (''+text).replace(/[&<>"']/g, function(m) {
+                return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+            });
+        }
+
         function renderReports() {
             const hoy = new Date().toLocaleDateString('es-CU');
             const dataHoy = txs.filter(t => t.date === hoy);
             const ing = dataHoy.filter(t => t.val > 0).reduce((a,b) => a + b.val, 0);
             const gas = dataHoy.filter(t => t.val < 0).reduce((a,b) => a + Math.abs(b.val), 0);
 
-            document.getElementById('rep-utilidad') && (document.getElementById('rep-utilidad').innerText = format(ing - gas));
-            document.getElementById('rep-date') && (document.getElementById('rep-date').innerText = hoy);
-            document.getElementById('rep-sinicial') && (document.getElementById('rep-sinicial').innerText = format(config.initialBalance));
-            document.getElementById('rep-tingresos') && (document.getElementById('rep-tingresos').innerText = `+${format(ing)}`);
-            document.getElementById('rep-tegresos') && (document.getElementById('rep-tegresos').innerText = `-${format(gas)}`);
-            document.getElementById('rep-sfinal') && (document.getElementById('rep-sfinal').innerText = format(config.initialBalance + (ing - gas)));
+            document.getElementById('rep-utilidad').innerText = format(ing - gas);
+            document.getElementById('rep-date').innerText = hoy;
+            document.getElementById('rep-sinicial').innerText = format(config.initialBalance);
+            document.getElementById('rep-tingresos').innerText = `+${format(ing)}`;
+            document.getElementById('rep-tegresos').innerText = `-${format(gas)}`;
+            document.getElementById('rep-sfinal').innerText = format(config.initialBalance + (ing - gas));
         }
 
-        // Note: other original functions (sendWhatsApp, printInvoice, importData/exportData, etc.)
-        // remain available if you had them in your original file — add them back unchanged if needed.
+        function exportData() {
+            const blob = new Blob([JSON.stringify({txs, config}, null, 2)], {type:'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Versat_Pro_Backup.json`;
+            a.click();
+            showToast('success', 'Backup descargado');
+        }
+
+        function importData(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const d = JSON.parse(ev.target.result);
+                    txs = d.txs || []; 
+                    config = d.config || { initialBalance: 0 };
+                    localStorage.setItem('versat_pro_txs', JSON.stringify(txs));
+                    localStorage.setItem('versat_pro_config', JSON.stringify(config));
+                    renderDashboard();
+                    showToast('success', 'Datos restaurados con éxito');
+                } catch (err) {
+                    showToast('error', 'El archivo no es válido');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        updateButtons();
+        renderDashboard();
     </script>
 
+    <!-- AUTH SCRIPT (unchanged from your original) -->
     <script>
-      // UPLOAD HANDLER: stores uploaded file content in localStorage under key "aut.json"
+      (function(){
+        const modal = document.getElementById('loginModal');
+        const emailInput = document.getElementById('loginEmail');
+        const submitBtn = document.getElementById('loginSubmit');
+        const feedback = document.getElementById('loginFeedback');
+        const USERS_JSON = 'users.json';
+
+        function showModal() { modal.classList.remove('login-hidden'); modal.classList.add('flex'); setTimeout(()=> emailInput.focus(),50); }
+        function hideModal() { modal.classList.add('login-hidden'); modal.classList.remove('flex'); feedback.textContent = ''; }
+
+        async function loadUsers(){
+          try {
+            const res = await fetch(USERS_JSON + '?v=' + Date.now());
+            if (!res.ok) throw new Error('no users.json');
+            const j = await res.json();
+            if (Array.isArray(j)) return j;
+          } catch(e){
+            // fallback: allow two test emails
+            return [
+              { id: 'U1', email: 'admin@example.com', name: 'Admin User' },
+              { id: 'U2', email: 'vendedor@example.com', name: 'Vendedor José' }
+            ];
+          }
+        }
+
+        async function attemptLogin(){
+          feedback.textContent = '';
+          const email = (emailInput.value || '').trim().toLowerCase();
+          if (!email) { feedback.textContent = 'Ingresa un email válido'; return; }
+          const users = await loadUsers();
+          const found = users.find(u => (u.email||'').toLowerCase() === email);
+          if (found) {
+            // success
+            localStorage.setItem('vp_user_email', email);
+            hideModal();
+          } else {
+            feedback.textContent = 'Email no registrado. Agrega el email en users.json y recarga.';
+          }
+        }
+
+        // auto-open modal if not logged
+        window.addEventListener('load', async () => {
+          const stored = (localStorage.getItem('vp_user_email') || '').toLowerCase();
+          if (stored) {
+            // verify stored against users.json; if valid, don't show modal
+            const users = await loadUsers();
+            const ok = users.find(u => (u.email||'').toLowerCase() === stored);
+            if (ok) return; // keep app as-is
+            localStorage.removeItem('vp_user_email');
+          }
+          showModal();
+        });
+
+        submitBtn.addEventListener('click', attemptLogin);
+        emailInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+      })();
+    </script>
+
+    <!-- UPLOAD-SCRIPT: usa SOLO el archivo que subes; guarda aut.json en localStorage y vp_user_email -->
+    <script>
       (function(){
         const overlay = document.getElementById('uploadOverlay');
         const input = document.getElementById('uploadInput');
         const msg = document.getElementById('uploadMsg');
-        const skipBtn = document.getElementById('uploadSkip');
 
-        function toast(txt, type='info'){ try{ showToast(type==='error'?'error':'success', txt); }catch(e){ console.log(txt); } }
+        function showOverlay(){ overlay.style.display = 'flex'; }
+        function hideOverlay(){ overlay.style.display = 'none'; }
+
+        function toast(text, type='info'){
+          try { showToast(type==='error' ? 'error' : 'success', text); } catch(e) { console.log(text); }
+        }
 
         function extractEmails(obj){
           const re = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/gi;
@@ -414,8 +778,8 @@
           const seen = new WeakSet();
           function walk(x){
             if (!x || typeof x === 'number' || typeof x === 'boolean') return;
-            if (typeof x === 'string'){ const m = x.match(re); if(m) m.forEach(s=>found.add(s.toLowerCase())); return; }
-            if (typeof x === 'object'){
+            if (typeof x === 'string') { const m = x.match(re); if (m) m.forEach(s=>found.add(s.toLowerCase())); return; }
+            if (typeof x === 'object') {
               if (seen.has(x)) return;
               seen.add(x);
               if (Array.isArray(x)) x.forEach(walk); else Object.keys(x).forEach(k=>walk(x[k]));
@@ -425,52 +789,52 @@
           return Array.from(found);
         }
 
-        function getEmailFromParsed(parsed){
+        function getSingleEmail(parsed){
           if (!parsed) return null;
           if (Array.isArray(parsed)){
             if (parsed.length === 1 && parsed[0] && typeof parsed[0] === 'object'){
               if (parsed[0].email) return parsed[0].email.toLowerCase();
               if (parsed[0].correo) return parsed[0].correo.toLowerCase();
-              const e = extractEmails(parsed[0]); if (e.length===1) return e[0];
+              const e = extractEmails(parsed[0]); if (e.length === 1) return e[0];
               return null;
             }
-            const e = extractEmails(parsed); if (e.length===1) return e[0]; return null;
+            const e = extractEmails(parsed); if (e.length === 1) return e[0]; return null;
           } else if (typeof parsed === 'object'){
             if (parsed.email) return parsed.email.toLowerCase();
             if (parsed.correo) return parsed.correo.toLowerCase();
             if (parsed.user_email) return parsed.user_email.toLowerCase();
-            const e = extractEmails(parsed); if (e.length===1) return e[0]; return null;
+            const e = extractEmails(parsed); if (e.length === 1) return e[0]; return null;
           }
           return null;
         }
 
-        async function handleFile(file){
+        input.addEventListener('change', async (ev) => {
           msg.textContent = '';
-          if (!file){ msg.textContent = 'No seleccionó archivo.'; return; }
-          if (file.size > 3_000_000){ msg.textContent = 'Archivo demasiado grande.'; return; }
+          const f = ev.target.files && ev.target.files[0];
+          if (!f) { msg.textContent = 'No seleccionó archivo.'; return; }
+          if (f.size > 3_000_000) { msg.textContent = 'Archivo demasiado grande.'; return; }
           try {
-            const text = await file.text();
+            const txt = await f.text();
             let parsed;
-            try { parsed = JSON.parse(text); } catch(e){ msg.textContent = 'JSON inválido.'; return; }
+            try { parsed = JSON.parse(txt); } catch(e){ msg.textContent = 'JSON inválido.'; return; }
+            const email = getSingleEmail(parsed);
+            if (!email) { msg.textContent = 'El JSON debe contener exactamente UN correo (un solo usuario).'; return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = 'Correo detectado no válido.'; return; }
 
-            const email = getEmailFromParsed(parsed);
-            if (!email){ msg.textContent = 'No se encontró exactamente UN correo en el JSON. Debe contener un solo usuario.'; return; }
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ msg.textContent = 'Correo detectado no válido.'; return; }
-
-            // Save file content and email in localStorage
+            // guardamos exactamente lo que subió el usuario en localStorage bajo "aut.json"
             try {
-              localStorage.setItem('aut.json', text);
+              localStorage.setItem('aut.json', txt);
               localStorage.setItem('vp_user_email', email);
-            } catch (e) {
-              console.error('localStorage set failed', e);
-              msg.textContent = 'No se pudo guardar en localStorage (espacio o modo privado).';
+            } catch (err) {
+              console.error(err);
+              msg.textContent = 'No se pudo guardar en localStorage (modo privado o sin espacio).';
               return;
             }
 
-            toast('Archivo aceptado y guardado en localStorage (aut.json). Abriendo sistema...');
-            overlay.remove();
+            toast('Archivo subido y guardado en localStorage (aut.json). Abriendo sistema...');
+            hideOverlay();
 
-            // initialize app UI
+            // Inicializamos UI (las funciones ya existen en tu script original)
             try { if (typeof updateButtons === 'function') updateButtons(); } catch(e){ console.warn(e); }
             try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){ console.warn(e); }
             try { if (typeof renderReports === 'function') renderReports(); } catch(e){}
@@ -478,32 +842,19 @@
             console.error(err);
             msg.textContent = 'Error leyendo el archivo.';
           }
-        }
-
-        skipBtn.addEventListener('click', ()=> {
-          msg.textContent = 'Abriendo en modo demo (sin guardar usuario).';
-          overlay.remove();
-          toast('Modo demo activado');
-          try { if (typeof updateButtons === 'function') updateButtons(); } catch(e){}
-          try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
         });
 
-        input.addEventListener('change', (e)=> {
-          const f = e.target.files && e.target.files[0];
-          handleFile(f);
-        });
-
-        window.addEventListener('DOMContentLoaded', ()=> {
-          const storedEmail = (localStorage.getItem('vp_user_email') || '').toLowerCase();
+        // Mostrar overlay si no hay aut.json y no hay vp_user_email
+        window.addEventListener('DOMContentLoaded', () => {
           const storedJson = localStorage.getItem('aut.json');
-          if (storedEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(storedEmail) && storedJson) {
-            // user already uploaded previously -> remove overlay and init app
-            try { document.getElementById('uploadOverlay').remove(); } catch(e){}
-            try { if (typeof updateButtons === 'function') updateButtons(); } catch(e){}
-            try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
+          const storedEmail = localStorage.getItem('vp_user_email');
+          if (storedJson && storedEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(storedEmail)) {
+            // Ya subido antes: no mostrar overlay, app continúa normal
+            try { overlay.remove(); } catch(e){}
             return;
           }
-          // otherwise overlay stays visible (user must upload)
+          // Si no hay usuario guardado, mostramos overlay y bloqueamos la app hasta que suba
+          showOverlay();
         });
       })();
     </script>
