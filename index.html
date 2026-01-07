@@ -85,6 +85,15 @@
         .pricing-currency { font-size: 14px; color:#6b7280; margin-left:6px; }
         .pricing-buy { margin-top:12px; display:block; width:100%; text-align:center; padding:10px;background:#059669;color:#fff;border-radius:10px;text-decoration:none;font-weight:700; }
     </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body class="flex flex-col md:flex-row min-h-screen">
 
@@ -361,7 +370,7 @@
     </div>
 
     <script>
-        // === Your original app script (unchanged) ===
+        // === App script ===
         let txs = JSON.parse(localStorage.getItem('versat_pro_txs')) || [];
         let config = JSON.parse(localStorage.getItem('versat_pro_config')) || { initialBalance: 0 };
 
@@ -479,7 +488,6 @@
                         <div class="flex items-center justify-between sm:justify-end gap-4">
                             <span class="font-black text-sm ${isPos ? 'text-green-600' : 'text-red-600'}">${format(t.val)}</span>
                             <div class="flex gap-2">
-                                <button onclick="sendWhatsApp('${t.id}')" title="Enviar por WhatsApp" class="action-btn bg-green-500 text-white hover:bg-green-600 shadow-md">W</button>
                                 <button onclick="printInvoice('${t.id}')" title="Ver Factura PDF" class="action-btn bg-blue-600 text-white hover:bg-blue-700 shadow-md">P</button>
                                 <button onclick="deleteTx('${t.id}')" title="Eliminar Registro" class="action-btn bg-red-600 text-white hover:bg-red-700 shadow-md">X</button>
                             </div>
@@ -521,13 +529,6 @@
             document.getElementById('print-val').innerText = format(t.val);
             
             window.print();
-        }
-
-        async function sendWhatsApp(id) {
-            const t = txs.find(x => x.id === id);
-            if (!t) { showToast('error', 'Registro no encontrado'); return; }
-            const fallbackText = `Recibo ${t.id} - ${t.cat} - ${t.desc} - ${format(t.val)}`;
-            window.open(`https://wa.me/56639178?text=${encodeURIComponent(fallbackText)}`, '_blank');
         }
 
         function renderReports() {
@@ -576,7 +577,7 @@
         updateButtons();
         renderDashboard();
 
-        // === Overlay logic (keeps only the upload behaviour; text changed + buy button) ===
+        // === Overlay logic ===
         (function(){
           const overlay = document.getElementById('uploadOverlay');
           const input = document.getElementById('uploadInput');
@@ -628,36 +629,31 @@
               if (!email) { msg.textContent = 'El JSON debe contener exactamente UN correo (un solo usuario).'; return; }
               if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = 'Correo detectado no válido.'; return; }
 
-              // save uploaded file and email to localStorage
               try {
                 localStorage.setItem('aut.json', txt);
                 localStorage.setItem('vp_user_email', email);
               } catch (err) {
                 console.error(err);
-                msg.textContent = 'No se pudo guardar en localStorage (modo privado o sin espacio).';
+                msg.textContent = 'No se pudo guardar en localStorage.';
                 return;
               }
 
-              showToast('success','Archivo subido y guardado (aut.json). Abriendo aplicación...');
+              showToast('success','Archivo subido con éxito. Abriendo aplicación...');
               try { overlay.remove(); } catch(e){}
-              try { if (typeof updateButtons === 'function') updateButtons(); } catch(e){}
-              try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
-              try { if (typeof renderReports === 'function') renderReports(); } catch(e){}
+              renderDashboard();
             } catch (err) {
               console.error(err);
               msg.textContent = 'Error leyendo el archivo.';
             }
           });
 
-          // buy button opens WhatsApp to the provided number with a short message
           buyBtn.addEventListener('click', (e) => {
             e.preventDefault();
             const phone = '56639178';
-            const text = 'Me interesa obtener un archivo de autentificar para la app';
+            const text = 'Me interesa obtener un archivo de autentificación para la app';
             window.open(`https://wa.me/${encodeURIComponent(phone)}?text=${encodeURIComponent(text)}`, '_blank');
           });
 
-          // show overlay only when no stored aut.json + vp_user_email
           window.addEventListener('DOMContentLoaded', () => {
             const storedJson = localStorage.getItem('aut.json');
             const storedEmail = localStorage.getItem('vp_user_email');
@@ -665,9 +661,9 @@
               try { document.getElementById('uploadOverlay').remove(); } catch(e){}
               return;
             }
-            // else overlay remains visible (in DOM) and blocks app until user uploads
           });
         })();
     </script>
+<script type="module" src="/index.tsx"></script>
 </body> 
 </html>
