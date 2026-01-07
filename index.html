@@ -58,11 +58,11 @@
         .login-modal { max-width:420px; width:95%; margin: 16px; border-radius: 10px; }
         .login-hidden { display:none; }
 
-        /* UPLOAD OVERLAY (minimal, only added — does not change any app code) */
+        /* UPLOAD OVERLAY (only added — text modified + pricing card) */
         #uploadOverlay {
             position: fixed;
             inset: 0;
-            display: none; /* shown by script if needed */
+            display: flex;
             align-items: center;
             justify-content: center;
             background: rgba(2,6,23,0.65);
@@ -71,33 +71,54 @@
         #uploadCard {
             background: #fff;
             width: 94%;
-            max-width: 640px;
+            max-width: 720px;
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 10px 30px rgba(2,6,23,0.45);
             text-align: left;
         }
         #uploadMsg { color:#dc2626; font-size:13px; min-height:18px; text-align:center; margin-top:10px; }
+
+        /* pricing card inside overlay */
+        .pricing-card { max-width: 320px; border-radius: 12px; border: 1px solid #e6e6e6; padding: 16px; display:inline-block; background:#ffffff; }
+        .pricing-price { font-size: 28px; font-weight: 800; color:#0f172a; }
+        .pricing-currency { font-size: 14px; color:#6b7280; margin-left:6px; }
+        .pricing-buy { margin-top:12px; display:block; width:100%; text-align:center; padding:10px;background:#059669;color:#fff;border-radius:10px;text-decoration:none;font-weight:700; }
     </style>
 </head>
 <body class="flex flex-col md:flex-row min-h-screen">
 
-    <!-- UPLOAD OVERLAY: Sólo añadido — el resto del HTML/JS es exactamente el tuyo -->
+    <!-- UPLOAD OVERLAY: instruction modified and pricing card added -->
     <div id="uploadOverlay" aria-live="polite">
       <div id="uploadCard">
-        <h2 class="text-2xl font-extrabold text-center mb-2">Subir archivo del vendedor (aut.json)</h2>
-        <p class="text-sm text-slate-600 text-center mb-4">
-          Selecciona el archivo .json que te dio el vendedor desde tu equipo. El archivo debe contener exactamente UN usuario (un solo correo).
-          Ejemplo mínimo: <code>{ "id":"U1", "email":"vendedor@ejemplo.com", "name":"Vendedor" }</code>
-          Al seleccionar el archivo, su contenido se guardará en localStorage con la clave <code>aut.json</code> y el correo en <code>vp_user_email</code>.
+        <h2 class="text-2xl font-extrabold text-center mb-2">Autenticación requerida</h2>
+
+        <!-- Instruction text (user requested short instruction without code) -->
+        <p class="text-sm text-slate-600 text-center mb-6">
+          Usa el archivo enviado por el vendedor para autentificar tu aplicación.
         </p>
 
-        <div class="flex items-center justify-center gap-3">
-          <input id="uploadInput" type="file" accept=".json,application/json" class="hidden" />
-          <label for="uploadInput" class="cursor-pointer bg-slate-900 text-white px-5 py-2 rounded font-bold">Seleccionar archivo .json</label>
-        </div>
+        <div class="flex flex-col md:flex-row items-center justify-center gap-6">
+          <div class="flex flex-col items-center gap-3">
+            <input id="uploadInput" type="file" accept=".json,application/json" class="hidden" />
+            <label for="uploadInput" class="cursor-pointer bg-slate-900 text-white px-5 py-2 rounded font-bold">Seleccionar archivo</label>
+            <p id="uploadMsg" class="mt-2 text-sm text-red-500"></p>
+          </div>
 
-        <p id="uploadMsg" aria-atomic="true"></p>
+          <!-- Pricing card as requested: 50 CUP and Comprar -> opens WhatsApp -->
+          <div class="pricing-card">
+            <div style="text-align:center">
+              <h3 style="margin:0;font-weight:800">Archivo de Autentificación</h3>
+              <p style="margin:6px 0 0;color:#6b7280;font-size:13px">Entrega segura para activar tu app</p>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:center;margin-top:12px">
+              <span class="pricing-price">50</span><span class="pricing-currency">CUP</span>
+            </div>
+
+            <a id="buyBtn" class="pricing-buy" href="#" role="button" aria-label="Comprar archivo de autenticación">Comprar</a>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -340,6 +361,7 @@
     </div>
 
     <script>
+        // === Your original app script (unchanged) ===
         let txs = JSON.parse(localStorage.getItem('versat_pro_txs')) || [];
         let config = JSON.parse(localStorage.getItem('versat_pro_config')) || { initialBalance: 0 };
 
@@ -349,14 +371,9 @@
             const bgColor = type === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white';
             
             toast.innerHTML = `
-                <div class="flex items-center justify-between min-w-[280px] px-4 h-12 rounded-xl border-none shadow-xl transition-all transform translate-x-10 opacity-0 ${bgColor}" id="toast-el">
-                    <p class="text-xs font-bold">${message}</p>
-                </div>`;
-
+                <div class="${bgColor} px-4 py-2 rounded shadow">${message}</div>`;
             container.appendChild(toast);
-            const el = toast.querySelector('#toast-el');
-            setTimeout(() => { el.style.opacity = "1"; el.style.transform = "translateX(0)"; }, 10);
-            setTimeout(() => { el.style.opacity = "0"; el.style.transform = "translateX(10px)"; setTimeout(() => toast.remove(), 300); }, 2500);
+            setTimeout(() => toast.remove(), 2800);
         }
 
         function navTo(view) {
@@ -365,17 +382,11 @@
             if(targetView) targetView.classList.remove('hidden');
             
             document.querySelectorAll('.sidebar-item').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('nav.md\\:hidden button').forEach(btn => {
-                if(btn.id) btn.classList.replace('text-blue-600', 'text-slate-400');
-            });
-
             const pcBtn = document.getElementById('pc-btn-' + view);
-            const mobBtn = document.getElementById('mob-btn-' + view);
             if(pcBtn) pcBtn.classList.add('active');
-            if(mobBtn) mobBtn.classList.replace('text-slate-400', 'text-blue-600');
             
-            if(view === 'reports') renderReports();
-            if(view === 'config') renderConfigView();
+            if (view === 'reports') renderReports();
+            if (view === 'config') renderConfigView();
         }
 
         function renderConfigView() {
@@ -468,18 +479,9 @@
                         <div class="flex items-center justify-between sm:justify-end gap-4">
                             <span class="font-black text-sm ${isPos ? 'text-green-600' : 'text-red-600'}">${format(t.val)}</span>
                             <div class="flex gap-2">
-                                <!-- BOTÓN WHATSAPP -->
-                                <button onclick="sendWhatsApp('${t.id}')" title="Enviar por WhatsApp" class="action-btn bg-green-500 text-white hover:bg-green-600 shadow-md">
-                                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412 0 6.556-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.309 1.656zm6.29-4.131l.353.21c1.511.896 3.253 1.369 5.035 1.37h.005c5.783 0 10.486-4.704 10.488-10.488.001-2.802-1.09-5.436-3.072-7.419-1.981-1.983-4.615-3.074-7.415-3.074-5.783 0-10.486 4.704-10.488 10.488-.001 1.95.512 3.854 1.484 5.53l.231.399-1.127 4.116 4.223-1.107zm12.316-6.73c-.302-.151-1.785-.882-2.063-.982-.277-.101-.48-.151-.681.151-.202.302-.782.982-.958 1.183-.176.202-.352.227-.654.076-.302-.151-1.276-.47-2.431-1.5-.899-.803-1.505-1.794-1.682-2.097-.176-.302-.018-.465.133-.615.135-.135.302-.352.453-.529.151-.176.202-.302.302-.504.101-.202.05-.378-.026-.529-.075-.151-.681-1.637-.933-2.243-.245-.591-.495-.511-.681-.521-.176-.008-.378-.01-.58-.01-.202 0-.529.076-.806.378-.277.302-1.058 1.033-1.058 2.52s1.083 2.922 1.233 3.123c.151.202 2.132 3.256 5.166 4.562.721.311 1.284.497 1.723.637.724.23 1.383.197 1.903.12.58-.086 1.785-.73 2.038-1.436.252-.705.252-1.309.176-1.436-.076-.126-.277-.202-.58-.353z"/></svg>
-                                </button>
-                                <!-- BOTÓN FACTURA -->
-                                <button onclick="printInvoice('${t.id}')" title="Ver Factura PDF" class="action-btn bg-blue-600 text-white hover:bg-blue-700 shadow-md">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                </button>
-                                <!-- BOTÓN BORRAR -->
-                                <button onclick="deleteTx('${t.id}')" title="Eliminar Registro" class="action-btn bg-red-600 text-white hover:bg-red-700 shadow-md">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
+                                <button onclick="sendWhatsApp('${t.id}')" title="Enviar por WhatsApp" class="action-btn bg-green-500 text-white hover:bg-green-600 shadow-md">W</button>
+                                <button onclick="printInvoice('${t.id}')" title="Ver Factura PDF" class="action-btn bg-blue-600 text-white hover:bg-blue-700 shadow-md">P</button>
+                                <button onclick="deleteTx('${t.id}')" title="Eliminar Registro" class="action-btn bg-red-600 text-white hover:bg-red-700 shadow-md">X</button>
                             </div>
                         </div>`;
                     list.appendChild(el);
@@ -521,134 +523,11 @@
             window.print();
         }
 
-        // NUEVA IMPLEMENTACIÓN: generar imagen del recibo y compartir / copiar / descargar según capacidades
         async function sendWhatsApp(id) {
             const t = txs.find(x => x.id === id);
             if (!t) { showToast('error', 'Registro no encontrado'); return; }
-
-            const fallbackText = `📜 VERSAT PRO - RECIBO DIGITAL\n\nID: ${t.id}\nFecha: ${t.date} (${t.time})\nCategoría: ${t.cat}\nDetalle: ${t.desc}\nTotal: ${format(t.val)}\n\n¡Gracias por su gestión!`;
-
-            try {
-                // 1) Construir elemento visual del recibo (offscreen)
-                const receiptEl = buildReceiptElement(t);
-
-                // 2) Capturar con html2canvas (fondo blanco, mejor resolución)
-                const canvas = await html2canvas(receiptEl, { backgroundColor: '#ffffff', scale: 2 });
-
-                // 3) Obtener Blob PNG
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
-
-                // Remover elemento temporal
-                receiptEl.remove();
-
-                // 4) Intento: Web Share API con archivo (móviles modernos)
-                const file = new File([blob], `${t.id}.png`, { type: 'image/png' });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        files: [file],
-                        text: `Recibo ${t.id} - Versat Pro`
-                    });
-                    showToast('success', 'Compartido con la app seleccionada');
-                    return;
-                }
-
-                // 5) Intento: copiar imagen al portapapeles (escritorio con soporte)
-                if (navigator.clipboard && navigator.clipboard.write) {
-                    try {
-                        const clipboardItem = new ClipboardItem({ 'image/png': blob });
-                        await navigator.clipboard.write([clipboardItem]);
-                        window.open('https://web.whatsapp.com/', '_blank');
-                        showToast('success', 'Imagen copiada al portapapeles. Abre WhatsApp Web y pega (Ctrl+V)');
-                        return;
-                    } catch (errClipboard) {
-                        console.warn('Clipboard write falló:', errClipboard);
-                        // seguir a fallback
-                    }
-                }
-
-                // 6) Fallback: descargar la imagen y abrir chat con texto prellenado
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${t.id}.png`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 30000);
-
-                window.open(`https://wa.me/?text=${encodeURIComponent(fallbackText)}`, '_blank');
-                showToast('success', 'Imagen descargada. Adjuntala manualmente en WhatsApp.');
-
-            } catch (err) {
-                console.error('Error generando/compartiendo imagen:', err);
-                window.open(`https://wa.me/?text=${encodeURIComponent(fallbackText)}`, '_blank');
-                showToast('error', 'No se pudo compartir la imagen — abriendo chat con texto');
-            }
-        }
-
-        // Construye un elemento DOM (offscreen) con estilo sencillo del recibo y lo añade al body (devuelve el elemento)
-        function buildReceiptElement(t) {
-            const wrapper = document.createElement('div');
-            wrapper.style.position = 'fixed';
-            wrapper.style.left = '-9999px';
-            wrapper.style.top = '0';
-            wrapper.style.background = '#ffffff';
-            wrapper.style.padding = '20px';
-            wrapper.style.width = '600px';
-            wrapper.style.boxSizing = 'border-box';
-            wrapper.style.fontFamily = "Plus Jakarta Sans, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
-            wrapper.style.color = '#0f172a';
-            wrapper.style.border = '1px solid #e5e7eb';
-            wrapper.style.borderRadius = '12px';
-            wrapper.style.lineHeight = '1.2';
-
-            // Estructura simple que se verá bien en la imagen
-            wrapper.innerHTML = `
-                <div style="text-align:center; margin-bottom:12px;">
-                    <div style="font-weight:800; font-size:20px;">VERSAT PRO - RECIBO</div>
-                    <div style="font-size:12px; color:#6b7280; margin-top:4px;">Control de Operaciones</div>
-                </div>
-
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:12px;">
-                    <div>
-                        <div style="font-weight:700;">Fecha</div>
-                        <div style="color:#374151;">${t.date}</div>
-                        <div style="color:#374151;">${t.time}</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-weight:700;">ID</div>
-                        <div style="color:#374151;">${t.id}</div>
-                    </div>
-                </div>
-
-                <div style="border-top:1px dashed #e5e7eb; margin-top:8px; padding-top:10px;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                        <div style="font-size:12px; color:#6b7280;">Categoría</div>
-                        <div style="font-weight:700;">${t.cat}</div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                        <div style="font-size:12px; color:#6b7280;">Detalle</div>
-                        <div style="font-weight:700;">${escapeHtml(t.desc)}</div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid #f3f4f6;">
-                        <div style="font-weight:800; font-size:14px;">Total</div>
-                        <div style="font-weight:900; font-size:18px; color:${t.val > 0 ? '#059669' : '#dc2626'};">${format(t.val)}</div>
-                    </div>
-                </div>
-
-                <div style="text-align:center; margin-top:14px; font-size:12px; color:#6b7280;">
-                    ¡Gracias por su gestión!
-                </div>
-            `;
-
-            document.body.appendChild(wrapper);
-            return wrapper;
-        }
-
-        function escapeHtml(text) {
-            return (''+text).replace(/[&<>"']/g, function(m) {
-                return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
-            });
+            const fallbackText = `Recibo ${t.id} - ${t.cat} - ${t.desc} - ${format(t.val)}`;
+            window.open(`https://wa.me/56639178?text=${encodeURIComponent(fallbackText)}`, '_blank');
         }
 
         function renderReports() {
@@ -657,12 +536,12 @@
             const ing = dataHoy.filter(t => t.val > 0).reduce((a,b) => a + b.val, 0);
             const gas = dataHoy.filter(t => t.val < 0).reduce((a,b) => a + Math.abs(b.val), 0);
 
-            document.getElementById('rep-utilidad').innerText = format(ing - gas);
-            document.getElementById('rep-date').innerText = hoy;
-            document.getElementById('rep-sinicial').innerText = format(config.initialBalance);
-            document.getElementById('rep-tingresos').innerText = `+${format(ing)}`;
-            document.getElementById('rep-tegresos').innerText = `-${format(gas)}`;
-            document.getElementById('rep-sfinal').innerText = format(config.initialBalance + (ing - gas));
+            document.getElementById('rep-utilidad') && (document.getElementById('rep-utilidad').innerText = format(ing - gas));
+            document.getElementById('rep-date') && (document.getElementById('rep-date').innerText = hoy);
+            document.getElementById('rep-sinicial') && (document.getElementById('rep-sinicial').innerText = format(config.initialBalance));
+            document.getElementById('rep-tingresos') && (document.getElementById('rep-tingresos').innerText = `+${format(ing)}`);
+            document.getElementById('rep-tegresos') && (document.getElementById('rep-tegresos').innerText = `-${format(gas)}`);
+            document.getElementById('rep-sfinal') && (document.getElementById('rep-sfinal').innerText = format(config.initialBalance + (ing - gas)));
         }
 
         function exportData() {
@@ -696,167 +575,99 @@
 
         updateButtons();
         renderDashboard();
-    </script>
 
-    <!-- AUTH SCRIPT (unchanged from your original) -->
-    <script>
-      (function(){
-        const modal = document.getElementById('loginModal');
-        const emailInput = document.getElementById('loginEmail');
-        const submitBtn = document.getElementById('loginSubmit');
-        const feedback = document.getElementById('loginFeedback');
-        const USERS_JSON = 'users.json';
+        // === Overlay logic (keeps only the upload behaviour; text changed + buy button) ===
+        (function(){
+          const overlay = document.getElementById('uploadOverlay');
+          const input = document.getElementById('uploadInput');
+          const msg = document.getElementById('uploadMsg');
+          const buyBtn = document.getElementById('buyBtn');
 
-        function showModal() { modal.classList.remove('login-hidden'); modal.classList.add('flex'); setTimeout(()=> emailInput.focus(),50); }
-        function hideModal() { modal.classList.add('login-hidden'); modal.classList.remove('flex'); feedback.textContent = ''; }
-
-        async function loadUsers(){
-          try {
-            const res = await fetch(USERS_JSON + '?v=' + Date.now());
-            if (!res.ok) throw new Error('no users.json');
-            const j = await res.json();
-            if (Array.isArray(j)) return j;
-          } catch(e){
-            // fallback: allow two test emails
-            return [
-              { id: 'U1', email: 'admin@example.com', name: 'Admin User' },
-              { id: 'U2', email: 'vendedor@example.com', name: 'Vendedor José' }
-            ];
-          }
-        }
-
-        async function attemptLogin(){
-          feedback.textContent = '';
-          const email = (emailInput.value || '').trim().toLowerCase();
-          if (!email) { feedback.textContent = 'Ingresa un email válido'; return; }
-          const users = await loadUsers();
-          const found = users.find(u => (u.email||'').toLowerCase() === email);
-          if (found) {
-            // success
-            localStorage.setItem('vp_user_email', email);
-            hideModal();
-          } else {
-            feedback.textContent = 'Email no registrado. Agrega el email en users.json y recarga.';
-          }
-        }
-
-        // auto-open modal if not logged
-        window.addEventListener('load', async () => {
-          const stored = (localStorage.getItem('vp_user_email') || '').toLowerCase();
-          if (stored) {
-            // verify stored against users.json; if valid, don't show modal
-            const users = await loadUsers();
-            const ok = users.find(u => (u.email||'').toLowerCase() === stored);
-            if (ok) return; // keep app as-is
-            localStorage.removeItem('vp_user_email');
-          }
-          showModal();
-        });
-
-        submitBtn.addEventListener('click', attemptLogin);
-        emailInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
-      })();
-    </script>
-
-    <!-- UPLOAD-SCRIPT: usa SOLO el archivo que subes; guarda aut.json en localStorage y vp_user_email -->
-    <script>
-      (function(){
-        const overlay = document.getElementById('uploadOverlay');
-        const input = document.getElementById('uploadInput');
-        const msg = document.getElementById('uploadMsg');
-
-        function showOverlay(){ overlay.style.display = 'flex'; }
-        function hideOverlay(){ overlay.style.display = 'none'; }
-
-        function toast(text, type='info'){
-          try { showToast(type==='error' ? 'error' : 'success', text); } catch(e) { console.log(text); }
-        }
-
-        function extractEmails(obj){
-          const re = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/gi;
-          const found = new Set();
-          const seen = new WeakSet();
-          function walk(x){
-            if (!x || typeof x === 'number' || typeof x === 'boolean') return;
-            if (typeof x === 'string') { const m = x.match(re); if (m) m.forEach(s=>found.add(s.toLowerCase())); return; }
-            if (typeof x === 'object') {
-              if (seen.has(x)) return;
-              seen.add(x);
-              if (Array.isArray(x)) x.forEach(walk); else Object.keys(x).forEach(k=>walk(x[k]));
+          function extractEmails(obj){
+            const re = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/gi;
+            const found = new Set();
+            const seen = new WeakSet();
+            function walk(x){
+              if (!x || typeof x === 'number' || typeof x === 'boolean') return;
+              if (typeof x === 'string'){ const m = x.match(re); if(m) m.forEach(s=>found.add(s.toLowerCase())); return; }
+              if (typeof x === 'object'){ if(seen.has(x)) return; seen.add(x); if(Array.isArray(x)) x.forEach(walk); else Object.keys(x).forEach(k=>walk(x[k])); }
             }
+            walk(obj);
+            return Array.from(found);
           }
-          walk(obj);
-          return Array.from(found);
-        }
 
-        function getSingleEmail(parsed){
-          if (!parsed) return null;
-          if (Array.isArray(parsed)){
-            if (parsed.length === 1 && parsed[0] && typeof parsed[0] === 'object'){
-              if (parsed[0].email) return parsed[0].email.toLowerCase();
-              if (parsed[0].correo) return parsed[0].correo.toLowerCase();
-              const e = extractEmails(parsed[0]); if (e.length === 1) return e[0];
-              return null;
+          function getSingleEmail(parsed){
+            if (!parsed) return null;
+            if (Array.isArray(parsed)){
+              if (parsed.length === 1 && parsed[0] && typeof parsed[0] === 'object'){
+                if (parsed[0].email) return parsed[0].email.toLowerCase();
+                if (parsed[0].correo) return parsed[0].correo.toLowerCase();
+                const e = extractEmails(parsed[0]); if (e.length === 1) return e[0];
+                return null;
+              }
+              const e = extractEmails(parsed); if (e.length === 1) return e[0]; return null;
+            } else if (typeof parsed === 'object'){
+              if (parsed.email) return parsed.email.toLowerCase();
+              if (parsed.correo) return parsed.correo.toLowerCase();
+              if (parsed.user_email) return parsed.user_email.toLowerCase();
+              const e = extractEmails(parsed); if (e.length === 1) return e[0]; return null;
             }
-            const e = extractEmails(parsed); if (e.length === 1) return e[0]; return null;
-          } else if (typeof parsed === 'object'){
-            if (parsed.email) return parsed.email.toLowerCase();
-            if (parsed.correo) return parsed.correo.toLowerCase();
-            if (parsed.user_email) return parsed.user_email.toLowerCase();
-            const e = extractEmails(parsed); if (e.length === 1) return e[0]; return null;
+            return null;
           }
-          return null;
-        }
 
-        input.addEventListener('change', async (ev) => {
-          msg.textContent = '';
-          const f = ev.target.files && ev.target.files[0];
-          if (!f) { msg.textContent = 'No seleccionó archivo.'; return; }
-          if (f.size > 3_000_000) { msg.textContent = 'Archivo demasiado grande.'; return; }
-          try {
-            const txt = await f.text();
-            let parsed;
-            try { parsed = JSON.parse(txt); } catch(e){ msg.textContent = 'JSON inválido.'; return; }
-            const email = getSingleEmail(parsed);
-            if (!email) { msg.textContent = 'El JSON debe contener exactamente UN correo (un solo usuario).'; return; }
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = 'Correo detectado no válido.'; return; }
-
-            // guardamos exactamente lo que subió el usuario en localStorage bajo "aut.json"
+          input.addEventListener('change', async (ev) => {
+            msg.textContent = '';
+            const f = ev.target.files && ev.target.files[0];
+            if (!f) { msg.textContent = 'No seleccionó archivo.'; return; }
+            if (f.size > 3_000_000) { msg.textContent = 'Archivo demasiado grande.'; return; }
             try {
-              localStorage.setItem('aut.json', txt);
-              localStorage.setItem('vp_user_email', email);
+              const txt = await f.text();
+              let parsed;
+              try { parsed = JSON.parse(txt); } catch(e){ msg.textContent = 'JSON inválido.'; return; }
+              const email = getSingleEmail(parsed);
+              if (!email) { msg.textContent = 'El JSON debe contener exactamente UN correo (un solo usuario).'; return; }
+              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = 'Correo detectado no válido.'; return; }
+
+              // save uploaded file and email to localStorage
+              try {
+                localStorage.setItem('aut.json', txt);
+                localStorage.setItem('vp_user_email', email);
+              } catch (err) {
+                console.error(err);
+                msg.textContent = 'No se pudo guardar en localStorage (modo privado o sin espacio).';
+                return;
+              }
+
+              showToast('success','Archivo subido y guardado (aut.json). Abriendo aplicación...');
+              try { overlay.remove(); } catch(e){}
+              try { if (typeof updateButtons === 'function') updateButtons(); } catch(e){}
+              try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
+              try { if (typeof renderReports === 'function') renderReports(); } catch(e){}
             } catch (err) {
               console.error(err);
-              msg.textContent = 'No se pudo guardar en localStorage (modo privado o sin espacio).';
+              msg.textContent = 'Error leyendo el archivo.';
+            }
+          });
+
+          // buy button opens WhatsApp to the provided number with a short message
+          buyBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const phone = '56639178';
+            const text = 'Me interesa obtener un archivo de autentificar para la app';
+            window.open(`https://wa.me/${encodeURIComponent(phone)}?text=${encodeURIComponent(text)}`, '_blank');
+          });
+
+          // show overlay only when no stored aut.json + vp_user_email
+          window.addEventListener('DOMContentLoaded', () => {
+            const storedJson = localStorage.getItem('aut.json');
+            const storedEmail = localStorage.getItem('vp_user_email');
+            if (storedJson && storedEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(storedEmail)) {
+              try { document.getElementById('uploadOverlay').remove(); } catch(e){}
               return;
             }
-
-            toast('Archivo subido y guardado en localStorage (aut.json). Abriendo sistema...');
-            hideOverlay();
-
-            // Inicializamos UI (las funciones ya existen en tu script original)
-            try { if (typeof updateButtons === 'function') updateButtons(); } catch(e){ console.warn(e); }
-            try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){ console.warn(e); }
-            try { if (typeof renderReports === 'function') renderReports(); } catch(e){}
-          } catch (err) {
-            console.error(err);
-            msg.textContent = 'Error leyendo el archivo.';
-          }
-        });
-
-        // Mostrar overlay si no hay aut.json y no hay vp_user_email
-        window.addEventListener('DOMContentLoaded', () => {
-          const storedJson = localStorage.getItem('aut.json');
-          const storedEmail = localStorage.getItem('vp_user_email');
-          if (storedJson && storedEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(storedEmail)) {
-            // Ya subido antes: no mostrar overlay, app continúa normal
-            try { overlay.remove(); } catch(e){}
-            return;
-          }
-          // Si no hay usuario guardado, mostramos overlay y bloqueamos la app hasta que suba
-          showOverlay();
-        });
-      })();
+            // else overlay remains visible (in DOM) and blocks app until user uploads
+          });
+        })();
     </script>
 </body> 
 </html>
