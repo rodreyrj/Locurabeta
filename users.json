@@ -1,0 +1,16 @@
+[
+  {
+    "id": "U1",
+    "email": "admin@example.com",
+    "name": "Admin User",
+    "role": "admin",
+    "notes": "Cuenta de ejemplo para administración"
+  },
+  {
+    "id": "U2",
+    "email": "vendedor@example.com",
+    "name": "Vendedor José",
+    "role": "user",
+    "notes": "Cuenta de ejemplo para ventas"
+  }
+]

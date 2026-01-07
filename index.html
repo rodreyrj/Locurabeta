@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Versat Lite Pro - Control Total (Con Login)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background:#f8fafc; color:#0f172a; overflow-x:hidden; }
+
+    /* Center login container */
+    .login-backdrop { background: rgba(2,6,23,0.6); }
+    .card-login { max-width:420px; width:100%; }
+
+    .muted { color:#6b7280; font-size:13px; }
+
+    /* Hide the entire app until authenticated */
+    #app { display: none; }
+
+    ::-webkit-scrollbar { width: 6px; height:6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- TOAST -->
+  <div id="toast" class="fixed top-4 right-4 z-50"></div>
+
+  <!-- LOGIN MODAL (uses simplified markup) -->
+  <div id="login-modal" class="fixed inset-0 z-50 hidden items-center justify-center login-backdrop">
+    <div class="card-login bg-white text-gray-700 mx-4 md:p-6 p-4 text-left text-sm rounded shadow-[0px_0px_10px_0px] shadow-black/10">
+      <h2 class="text-2xl font-semibold mb-4 text-center text-gray-800">Iniciar sesión</h2>
+
+      <label for="login-email" class="block mb-1 text-sm font-medium text-gray-600">Email</label>
+      <input id="login-email" class="w-full border mt-1 border-gray-500/30 focus:border-indigo-500 outline-none rounded py-2.5 px-4" type="email" placeholder="Enter your email">
+
+      <button id="btn-send" type="button" class="w-full my-3 bg-gray-800 active:scale-95 transition py-2.5 rounded text-white">Entrar</button>
+
+      <div id="login-feedback" class="text-center text-sm mt-2 text-red-500"></div>
+
+      <div class="mt-3 muted text-xs">
+        <p><strong>Nota:</strong> Las cuentas permanentes se gestionan en el archivo <code>users.json</code> del repositorio. Agrega usuarios allí y recarga la página.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP (hidden until login) -->
+  <div id="app">
+    <!-- SIDEBAR PC -->
+    <aside class="no-print hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 h-screen sticky top-0 shadow-2xl p-6">
+        <div class="mb-6">
+            <h1 class="text-xl font-extrabold text-white flex items-center gap-2 italic">
+                <span class="bg-blue-600 p-1.5 rounded-lg not-italic font-sans text-sm">V</span> Versat Pro
+            </h1>
+            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Sistemas Contables</p>
+        </div>
+        <nav class="flex-1 px-3 space-y-1">
+            <button onclick="navTo('dashboard')" id="pc-btn-dashboard" class="sidebar-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold">Caja Diaria</button>
+            <button onclick="navTo('reports')" id="pc-btn-reports" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold hover:bg-slate-800">Balance y Reportes</button>
+            <button onclick="navTo('config')" id="pc-btn-config" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold hover:bg-slate-800">Ajustes de Caja</button>
+            <button onclick="navTo('backup')" id="pc-btn-backup" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold hover:bg-slate-800">Importar/Exportar</button>
+        </nav>
+        <div class="mt-6 text-sm">
+          <div id="user-info" class="text-slate-300"></div>
+          <button id="btn-logout" class="mt-3 px-3 py-2 bg-red-600 text-white rounded hidden">Cerrar sesión</button>
+        </div>
+    </aside>
+
+    <!-- MOBILE HEADER -->
+    <nav class="md:hidden bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center no-print shadow-lg">
+      <h1 class="font-bold flex items-center gap-2 text-sm"><span class="bg-blue-600 px-1.5 rounded">V</span> Versat Pro</h1>
+      <div id="mob-saldo" class="text-sm font-black text-green-400 leading-none">$0</div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 p-6">
+      <section>
+        <div class="bg-white p-6 rounded shadow">
+          <h2 class="text-xl font-black">Versat Pro - App</h2>
+          <p class="muted mt-2">El sistema está desbloqueado tras el inicio de sesión.</p>
+
+          <div class="mt-4">
+            <button id="btn-logout-bottom" class="px-3 py-2 bg-red-600 text-white rounded">Cerrar sesión</button>
+          </div>
+
+          <div class="mt-6">
+            <h3 class="font-bold">Última licencia</h3>
+            <pre id="last-license" class="license-preview h-40">—</pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+<script>
+/*
+  Simple email-only login:
+  - Reads users.json from same folder to allow "permanent" accounts.
+  - No signup UI provided (per request).
+  - LocalStorage keeps vp_user_email to persist session.
+*/
+
+const USERS_JSON = 'users.json';
+
+// simple toast
+function toast(msg, type='info') {
+  const container = document.getElementById('toast');
+  const el = document.createElement('div');
+  el.className = 'px-3 py-2 rounded shadow';
+  el.style.background = type === 'error' ? '#fee2e2' : '#e0f2fe';
+  el.style.color = type === 'error' ? '#991b1b' : '#0369a1';
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(()=> el.remove(), 3000);
+}
+
+// load users.json (only); no local signup merge
+async function loadUsers() {
+  try {
+    const res = await fetch(USERS_JSON + '?v=' + Date.now());
+    if (res.ok) return await res.json();
+    return [];
+  } catch (err) {
+    console.warn('users.json fetch failed:', err);
+    return [];
+  }
+}
+
+// modal control
+function showLoginModal() {
+  document.getElementById('login-modal').classList.remove('hidden');
+  document.getElementById('login-modal').classList.add('flex');
+}
+function hideLoginModal() {
+  document.getElementById('login-modal').classList.add('hidden');
+  document.getElementById('login-modal').classList.remove('flex');
+}
+
+// show app and set user info
+function showAppFor(user) {
+  document.getElementById('app').style.display = 'block';
+  hideLoginModal();
+  localStorage.setItem('vp_user_email', user.email);
+  const ui = document.getElementById('user-info');
+  ui.textContent = `${user.name || user.email} (${user.email})`;
+  document.getElementById('btn-logout').classList.remove('hidden');
+  document.getElementById('btn-logout-bottom').classList.remove('hidden');
+
+  // load last uploaded license preview if exists
+  const last = JSON.parse(localStorage.getItem('last_uploaded_license') || 'null');
+  if (last) document.getElementById('last-license').textContent = JSON.stringify(last, null, 2);
+  toast('Bienvenido ' + (user.name || user.email));
+}
+
+// login button handler
+document.getElementById('btn-send').addEventListener('click', async () => {
+  const email = (document.getElementById('login-email').value || '').trim().toLowerCase();
+  const fb = document.getElementById('login-feedback');
+  fb.textContent = '';
+  if (!email) { fb.textContent = 'Ingresa un email válido'; return; }
+
+  const users = await loadUsers();
+  const found = users.find(u => (u.email || '').toLowerCase() === email);
+  if (found) {
+    showAppFor(found);
+  } else {
+    fb.textContent = 'Email no registrado. Agrega el usuario en users.json y recarga.';
+  }
+});
+
+// logout handlers
+function doLogout() {
+  localStorage.removeItem('vp_user_email');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('user-info').textContent = '';
+  document.getElementById('btn-logout').classList.add('hidden');
+  document.getElementById('btn-logout-bottom').classList.add('hidden');
+  showLoginModal();
+  toast('Sesión cerrada');
+}
+document.getElementById('btn-logout').addEventListener('click', doLogout);
+document.getElementById('btn-logout-bottom').addEventListener('click', doLogout);
+
+// try auto-login if vp_user_email stored and present in users.json
+(async function init() {
+  const stored = (localStorage.getItem('vp_user_email') || '').toLowerCase();
+  const users = await loadUsers();
+  if (stored) {
+    const found = users.find(u => (u.email || '').toLowerCase() === stored);
+    if (found) { showAppFor(found); return; }
+    else localStorage.removeItem('vp_user_email');
+  }
+  showLoginModal();
+})();
+
+/* Utility: save last uploaded license (keeps parity with export flow) */
+function saveLastUploadedLicense(obj) {
+  localStorage.setItem('last_uploaded_license', JSON.stringify(obj));
+  document.getElementById('last-license').textContent = JSON.stringify(obj, null, 2);
+}
+</script>
+</body>
+</html>
