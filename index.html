@@ -1,73 +1,94 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Versat Lite Pro - Control Total</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2canvas para generar imagen del recibo -->
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #0f172a; overflow-x: hidden; }
-
+        
         .sidebar-item.active { background-color: #1e293b; color: #f8fafc; border-right: 4px solid #3b82f6; }
         .view-section { animation: fadeIn 0.2s ease-out; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column; gap: 10px;
+        }
 
-        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display:flex; flex-direction:column; gap:10px; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; padding: 0; }
+        }
+        .print-only { display: none; }
 
-        @media print { .no-print { display:none !important; } .print-only { display:block !important; } body { background:white; padding:0; } }
-        .print-only { display:none; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-        ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:10px; }
-
-        .mobile-center-btn:active { transform: scale(0.9); }
-        .action-btn { width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:10px; transition:all 0.2s; }
-
-        /* Login modal styles */
-        .login-backdrop { background: rgba(2,6,23,0.6); }
-        .login-card { max-width:420px; width:100%; }
+        .mobile-center-btn:active {
+            transform: scale(0.9);
+        }
+        
+        .action-btn {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            transition: all 0.2s;
+        }
     </style>
 </head>
-<body>
-
-    <!-- LOGIN MODAL (shows on load if not logged) -->
-    <div id="login-modal" class="fixed inset-0 z-50 hidden items-center justify-center login-backdrop">
-      <div class="login-card bg-white text-gray-500 md:p-6 p-4 text-left text-sm rounded shadow-[0px_0px_10px_0px] shadow-black/10">
-        <h2 class="text-2xl font-semibold mb-6 text-center text-gray-800">Iniciar sesión</h2>
-
-        <label for="login-email" class="block mb-1 text-sm font-medium text-gray-600">Email</label>
-        <input id="login-email" class="w-full border mt-1 border-gray-500/30 focus:border-indigo-500 outline-none rounded py-2.5 px-4" type="email" placeholder="Enter your email">
-
-        <button id="login-btn" type="button" class="w-full my-3 bg-gray-800 active:scale-95 transition py-2.5 rounded text-white">Entrar</button>
-
-        <p id="login-note" class="text-center mt-4 text-xs text-slate-500">Las cuentas permanentes se administran desde <code>users.json</code>. Usa uno de los emails predefinidos.</p>
-
-        <div id="login-feedback" class="text-center mt-3 text-sm text-red-500"></div>
-      </div>
-    </div>
+<body class="flex flex-col md:flex-row min-h-screen">
 
     <div id="toast-container"></div>
 
-    <!-- SIDEBAR PC (hidden until login) -->
-    <aside id="sidebar" class="no-print hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 h-screen sticky top-0 shadow-2xl">
+    <!-- SIDEBAR PC -->
+    <aside class="no-print hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 h-screen sticky top-0 shadow-2xl">
         <div class="p-6">
             <h1 class="text-xl font-extrabold text-white flex items-center gap-2 italic">
                 <span class="bg-blue-600 p-1.5 rounded-lg not-italic font-sans text-sm">V</span> Versat Pro
             </h1>
             <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Sistemas Contables</p>
         </div>
+        
         <nav class="flex-1 px-3 space-y-1">
-            <button onclick="navTo('dashboard')" id="pc-btn-dashboard" class="sidebar-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold">Caja Diaria</button>
-            <button onclick="navTo('reports')" id="pc-btn-reports" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold hover:bg-slate-800">Balance y Reportes</button>
-            <button onclick="navTo('config')" id="pc-btn-config" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold hover:bg-slate-800">Ajustes de Caja</button>
-            <button onclick="navTo('backup')" id="pc-btn-backup" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold hover:bg-slate-800">Importar/Exportar</button>
+            <button onclick="navTo('dashboard')" id="pc-btn-dashboard" class="sidebar-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                Caja Diaria
+            </button>
+            <button onclick="navTo('reports')" id="pc-btn-reports" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold hover:bg-slate-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                Balance y Reportes
+            </button>
+            <button onclick="navTo('config')" id="pc-btn-config" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold hover:bg-slate-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                Ajustes de Caja
+            </button>
+            <button onclick="navTo('backup')" id="pc-btn-backup" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold hover:bg-slate-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                Importar/Exportar
+            </button>
         </nav>
     </aside>
 
-    <!-- Mobile header (hidden until login) -->
-    <nav id="mobile-header" class="md:hidden hidden bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center no-print shadow-lg">
+    <!-- CABECERA MÓVIL -->
+    <nav class="md:hidden bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center no-print shadow-lg">
         <h1 class="font-bold flex items-center gap-2 text-sm"><span class="bg-blue-600 px-1.5 rounded">V</span> Versat Pro</h1>
         <div class="flex flex-col items-end">
             <span class="text-[9px] uppercase font-black text-slate-500 tracking-tighter">Efectivo Total</span>
@@ -75,10 +96,10 @@
         </div>
     </nav>
 
-    <!-- MAIN APP (hidden until login) -->
-    <main id="app-main" class="flex-1 flex flex-col min-h-screen no-print pb-24 md:pb-0 hidden">
+    <!-- CUERPO PRINCIPAL -->
+    <main class="flex-1 flex flex-col min-h-screen no-print pb-24 md:pb-0">
         <section class="p-4 md:p-8 flex-1 max-w-6xl mx-auto w-full">
-            <!-- Full original app content unchanged (kept exactly) -->
+            
             <!-- VISTA DASHBOARD -->
             <div id="view-dashboard" class="view-section">
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
@@ -126,12 +147,11 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="lg:col-span-7">
                         <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-200">
                             <div class="flex justify-between items-center mb-6">
                                 <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Movimientos de Hoy</h3>
-                                <button id="clear-today-btn" class="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-tighter">Limpiar</button>
+                                <button onclick="txs = txs.filter(t => t.date !== new Date().toLocaleDateString('es-CU')); localStorage.setItem('versat_pro_txs', JSON.stringify(txs)); renderDashboard();" class="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-tighter">Limpiar</button>
                             </div>
                             <div id="tx-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-2"></div>
                         </div>
@@ -139,333 +159,490 @@
                 </div>
             </div>
 
-            <!-- other views same as original... (omitted here for brevity but kept in final file) -->
+            <!-- VISTA AJUSTES DE CAJA -->
+            <div id="view-config" class="view-section hidden">
+                <div class="max-w-xl mx-auto">
+                    <div class="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-200">
+                        <div class="text-center mb-8">
+                            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            <h2 class="text-2xl font-black text-slate-800">Ajustes de Caja</h2>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Configura tu base de dinero</p>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 text-center">
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Saldo Inicial Actual</span>
+                                <h3 id="current-initial-display" class="text-3xl font-black text-blue-600 leading-none">$0</h3>
+                            </div>
+
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase ml-2 mb-1 block">Nuevo Saldo Inicial (CUP)</label>
+                                <input type="number" id="input-initial-balance" placeholder="Ej: 5000" class="w-full p-5 bg-slate-50 border-none rounded-2xl outline-none font-black text-xl shadow-inner focus:ring-2 focus:ring-blue-500" inputmode="decimal">
+                                <p class="text-[10px] text-slate-400 mt-2 px-2">Escribe aquí el dinero con el que abres la caja física.</p>
+                            </div>
+
+                            <button onclick="updateInitialBalanceSection()" class="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-lg shadow-blue-200 transition-all text-sm uppercase tracking-wider active:scale-95">
+                                ACTUALIZAR SALDO BASE
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA REPORTES -->
+            <div id="view-reports" class="view-section hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-slate-900 p-8 rounded-[3rem] text-white shadow-2xl">
+                        <h2 class="text-4xl font-black mb-2" id="rep-utilidad">$0</h2>
+                        <p class="text-slate-400 text-sm font-bold uppercase tracking-widest">Utilidad Neta (Hoy)</p>
+                    </div>
+                    <div class="bg-white p-8 rounded-[3rem] border border-slate-200">
+                        <div class="flex justify-between items-center mb-4">
+                             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resumen de Cierre</p>
+                             <span id="rep-date" class="text-[10px] bg-slate-100 px-2 py-1 rounded font-bold">--</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm"><span class="text-slate-500">Saldo Inicial:</span> <span id="rep-sinicial" class="font-bold"></span></div>
+                            <div class="flex justify-between text-sm"><span class="text-slate-500">Ingresos:</span> <span id="rep-tingresos" class="font-bold text-green-600"></span></div>
+                            <div class="flex justify-between text-sm"><span class="text-slate-500">Egresos:</span> <span id="rep-tegresos" class="font-bold text-red-600"></span></div>
+                            <div class="pt-2 border-t border-dashed flex justify-between font-black"><span class="text-slate-800">Saldo Final:</span> <span id="rep-sfinal"></span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA BACKUP -->
+            <div id="view-backup" class="view-section hidden">
+                <div class="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-sm max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-black text-slate-800 mb-6 text-center">Respaldo de Datos</h2>
+                    <div class="grid grid-cols-1 gap-4">
+                        <button onclick="exportData()" class="flex items-center justify-between p-6 bg-slate-900 text-white rounded-[2rem] hover:bg-black transition-all">
+                            <div class="text-left">
+                                <span class="block font-bold">Exportar Todo</span>
+                                <span class="text-[10px] text-slate-400">Descarga un archivo JSON de respaldo</span>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        </button>
+                        <label class="flex items-center justify-between p-6 bg-orange-600 text-white rounded-[2rem] hover:bg-orange-700 transition-all cursor-pointer">
+                            <div class="text-left">
+                                <span class="block font-bold">Importar Archivo</span>
+                                <span class="text-[10px] text-orange-200">Restaura datos desde un backup</span>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                            <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+                        </label>
+                    </div>
+                </div>
+            </div>
 
         </section>
 
-        <!-- MOBILE NAV -->
-        <nav id="mobile-nav" class="md:hidden hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-3 flex justify-around items-center z-50 rounded-t-[2.5rem] shadow-[0_-15px_30px_rgba(0,0,0,0.08)]">
+        <!-- NAVEGACIÓN MÓVIL -->
+        <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-3 flex justify-around items-center z-50 rounded-t-[2.5rem] shadow-[0_-15px_30px_rgba(0,0,0,0.08)]">
             <button onclick="navTo('dashboard')" id="mob-btn-dashboard" class="flex flex-col items-center flex-1 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
                 <span class="text-[9px] font-black uppercase mt-1">Caja</span>
             </button>
             <button onclick="navTo('reports')" id="mob-btn-reports" class="flex flex-col items-center flex-1 text-slate-400 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                 <span class="text-[9px] font-black uppercase mt-1">Balance</span>
             </button>
             <button onclick="navTo('config')" id="mob-btn-config" class="mobile-center-btn flex-1 flex flex-col items-center transition-all text-slate-400">
+                <div class="bg-blue-600 text-white p-3.5 rounded-full -mt-10 border-4 border-white shadow-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
                 <span class="text-[9px] font-black uppercase mt-1">Ajuste I.</span>
             </button>
             <button onclick="navTo('backup')" id="mob-btn-backup" class="flex flex-col items-center flex-1 text-slate-400 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                 <span class="text-[9px] font-black uppercase mt-1">Backup</span>
             </button>
         </nav>
     </main>
 
-    <!-- PRINT AREA -->
+    <!-- ÁREA DE IMPRESIÓN (FACTURA) -->
     <div class="print-only p-8 text-slate-900 bg-white" id="invoice-print">
-        <!-- unchanged -->
+        <div class="text-center border-b-2 border-slate-900 pb-4 mb-6">
+            <h1 class="text-2xl font-black">VERSAT PRO - RECIBO</h1>
+            <p class="text-xs uppercase font-bold tracking-widest mt-1">Control de Operaciones</p>
+        </div>
+        <div class="flex justify-between mb-8 text-sm">
+            <div>
+                <p class="font-bold">Fecha: <span id="print-date"></span></p>
+                <p class="font-bold">Hora: <span id="print-time"></span></p>
+            </div>
+            <div class="text-right">
+                <p class="font-bold">Nro: <span id="print-id"></span></p>
+            </div>
+        </div>
+        <div class="mb-10">
+            <div class="grid grid-cols-3 border-b border-slate-200 py-2 text-xs font-black uppercase tracking-widest">
+                <span>Categoría</span>
+                <span>Descripción</span>
+                <span class="text-right">Total</span>
+            </div>
+            <div class="grid grid-cols-3 py-4 text-sm font-medium">
+                <span id="print-cat"></span>
+                <span id="print-desc"></span>
+                <span id="print-val" class="text-right font-black"></span>
+            </div>
+        </div>
+        <div class="text-center border-t border-slate-200 pt-6">
+            <p class="text-[10px] font-bold uppercase tracking-widest">¡Gracias por su gestión!</p>
+        </div>
     </div>
 
-<script>
-/* ---------------------------
-  ORIGINAL APP JS (unchanged logic)
-  - IMPORTANT: we do NOT call updateButtons() or renderDashboard() on load here.
-    Those are called after successful login in the auth script below.
-----------------------------*/
-let txs = JSON.parse(localStorage.getItem('versat_pro_txs')) || [];
-let config = JSON.parse(localStorage.getItem('versat_pro_config')) || { initialBalance: 0 };
+    <script>
+        let txs = JSON.parse(localStorage.getItem('versat_pro_txs')) || [];
+        let config = JSON.parse(localStorage.getItem('versat_pro_config')) || { initialBalance: 0 };
 
-function showToast(type, message) {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    const bgColor = type === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white';
-    
-    toast.innerHTML = `
-        <div class="flex items-center justify-between min-w-[280px] px-4 h-12 rounded-xl border-none shadow-xl transition-all transform translate-x-10 opacity-0 ${bgColor}" id="toast-el">
-            <p class="text-xs font-bold">${message}</p>
-        </div>`;
+        function showToast(type, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white';
+            
+            toast.innerHTML = `
+                <div class="flex items-center justify-between min-w-[280px] px-4 h-12 rounded-xl border-none shadow-xl transition-all transform translate-x-10 opacity-0 ${bgColor}" id="toast-el">
+                    <p class="text-xs font-bold">${message}</p>
+                </div>`;
 
-    container.appendChild(toast);
-    const el = toast.querySelector('#toast-el');
-    setTimeout(() => { el.style.opacity = "1"; el.style.transform = "translateX(0)"; }, 10);
-    setTimeout(() => { el.style.opacity = "0"; el.style.transform = "translateX(10px)"; setTimeout(() => toast.remove(), 300); }, 2500);
-}
-
-function navTo(view) {
-    document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
-    const targetView = document.getElementById('view-' + view);
-    if(targetView) targetView.classList.remove('hidden');
-    
-    document.querySelectorAll('.sidebar-item').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('nav.md\\:hidden button').forEach(btn => {
-        if(btn.id) btn.classList.replace('text-blue-600', 'text-slate-400');
-    });
-
-    const pcBtn = document.getElementById('pc-btn-' + view);
-    const mobBtn = document.getElementById('mob-btn-' + view);
-    if(pcBtn) pcBtn.classList.add('active');
-    if(mobBtn) mobBtn.classList.replace('text-slate-400', 'text-blue-600');
-    
-    if(view === 'reports') renderReports();
-    if(view === 'config') renderConfigView();
-}
-
-function renderConfigView() {
-    const el = document.getElementById('current-initial-display');
-    if (el) el.innerText = format(config.initialBalance);
-    const input = document.getElementById('input-initial-balance');
-    if (input) input.value = '';
-}
-
-function updateInitialBalanceSection() {
-    const input = document.getElementById('input-initial-balance');
-    const val = parseFloat(input.value);
-    
-    if (!isNaN(val)) {
-        config.initialBalance = val;
-        localStorage.setItem('versat_pro_config', JSON.stringify(config));
-        showToast('success', 'Saldo inicial guardado');
-        renderDashboard();
-        renderConfigView();
-        setTimeout(() => navTo('dashboard'), 600);
-    } else {
-        showToast('error', 'Ingresa un número válido');
-    }
-}
-
-function updateButtons() {
-    const catEl = document.getElementById('main-cat');
-    if (!catEl) return;
-    const cat = catEl.value;
-    const container = document.getElementById('btn-container');
-    const isIncome = ['Ventas', 'Servicios'].includes(cat);
-    const btnColor = isIncome ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-900 hover:bg-black';
-
-    if (container) container.innerHTML = `
-        <button onclick="save('${isIncome ? 'ingreso' : 'gasto'}')" 
-                class="w-full ${btnColor} text-white font-black py-5 rounded-2xl shadow-lg transition-all text-sm uppercase tracking-wider active:scale-95">
-            GUARDAR ${cat}
-        </button>`;
-}
-
-function save(type) {
-    const descEl = document.getElementById('desc');
-    const montoEl = document.getElementById('monto');
-    if (!descEl || !montoEl) return;
-    const desc = descEl.value.trim();
-    const monto = parseFloat(montoEl.value);
-    const cat = document.getElementById('main-cat').value;
-
-    if(!desc || isNaN(monto) || monto <= 0) {
-        showToast('error', 'Completa descripción y monto');
-        return;
-    }
-
-    if (type === 'gasto') {
-        const actual = txs.reduce((a, b) => a + b.val, config.initialBalance);
-        if (monto > actual) {
-            showToast('error', 'No hay dinero suficiente');
-            return;
+            container.appendChild(toast);
+            const el = toast.querySelector('#toast-el');
+            setTimeout(() => { el.style.opacity = "1"; el.style.transform = "translateX(0)"; }, 10);
+            setTimeout(() => { el.style.opacity = "0"; el.style.transform = "translateX(10px)"; setTimeout(() => toast.remove(), 300); }, 2500);
         }
-    }
 
-    txs.unshift({
-        id: 'V' + Math.floor(Math.random() * 99999),
-        desc, cat, val: type === 'gasto' ? -monto : monto,
-        time: new Date().toLocaleTimeString('es-CU', { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString('es-CU')
-    });
+        function navTo(view) {
+            document.querySelectorAll('.view-section').forEach(s => s.classList.add('hidden'));
+            const targetView = document.getElementById('view-' + view);
+            if(targetView) targetView.classList.remove('hidden');
+            
+            document.querySelectorAll('.sidebar-item').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('nav.md\\:hidden button').forEach(btn => {
+                if(btn.id) btn.classList.replace('text-blue-600', 'text-slate-400');
+            });
 
-    localStorage.setItem('versat_pro_txs', JSON.stringify(txs));
-    descEl.value = '';
-    montoEl.value = '';
-    showToast('success', 'Operación registrada');
-    renderDashboard();
-}
+            const pcBtn = document.getElementById('pc-btn-' + view);
+            const mobBtn = document.getElementById('mob-btn-' + view);
+            if(pcBtn) pcBtn.classList.add('active');
+            if(mobBtn) mobBtn.classList.replace('text-slate-400', 'text-blue-600');
+            
+            if(view === 'reports') renderReports();
+            if(view === 'config') renderConfigView();
+        }
 
-function renderDashboard() {
-    const list = document.getElementById('tx-list');
-    if (!list) return;
-    const hoy = new Date().toLocaleDateString('es-CU');
-    let ing = 0, gas = 0;
-    const total = txs.reduce((a, b) => a + b.val, config.initialBalance);
+        function renderConfigView() {
+            document.getElementById('current-initial-display').innerText = format(config.initialBalance);
+            document.getElementById('input-initial-balance').value = '';
+        }
 
-    list.innerHTML = '';
-    txs.forEach(t => {
-        if(t.date === hoy) {
-            if(t.val > 0) ing += t.val; else gas += Math.abs(t.val);
-            const isPos = t.val > 0;
-            const el = document.createElement('div');
-            el.className = "flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm gap-4";
-            el.innerHTML = `
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-black text-xs ${isPos ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">${t.cat[0]}</div>
+        function updateInitialBalanceSection() {
+            const input = document.getElementById('input-initial-balance');
+            const val = parseFloat(input.value);
+            
+            if (!isNaN(val)) {
+                config.initialBalance = val;
+                localStorage.setItem('versat_pro_config', JSON.stringify(config));
+                showToast('success', 'Saldo inicial guardado');
+                renderDashboard();
+                renderConfigView();
+                setTimeout(() => navTo('dashboard'), 600);
+            } else {
+                showToast('error', 'Ingresa un número válido');
+            }
+        }
+
+        function updateButtons() {
+            const cat = document.getElementById('main-cat').value;
+            const container = document.getElementById('btn-container');
+            const isIncome = ['Ventas', 'Servicios'].includes(cat);
+            const btnColor = isIncome ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-900 hover:bg-black';
+
+            container.innerHTML = `
+                <button onclick="save('${isIncome ? 'ingreso' : 'gasto'}')" 
+                        class="w-full ${btnColor} text-white font-black py-5 rounded-2xl shadow-lg transition-all text-sm uppercase tracking-wider active:scale-95">
+                    GUARDAR ${cat}
+                </button>`;
+        }
+
+        function save(type) {
+            const desc = document.getElementById('desc').value.trim();
+            const monto = parseFloat(document.getElementById('monto').value);
+            const cat = document.getElementById('main-cat').value;
+
+            if(!desc || isNaN(monto) || monto <= 0) {
+                showToast('error', 'Completa descripción y monto');
+                return;
+            }
+
+            if (type === 'gasto') {
+                const actual = txs.reduce((a, b) => a + b.val, config.initialBalance);
+                if (monto > actual) {
+                    showToast('error', 'No hay dinero suficiente');
+                    return;
+                }
+            }
+
+            txs.unshift({
+                id: 'V' + Math.floor(Math.random() * 99999),
+                desc, cat, val: type === 'gasto' ? -monto : monto,
+                time: new Date().toLocaleTimeString('es-CU', { hour: '2-digit', minute: '2-digit' }),
+                date: new Date().toLocaleDateString('es-CU')
+            });
+
+            localStorage.setItem('versat_pro_txs', JSON.stringify(txs));
+            document.getElementById('desc').value = '';
+            document.getElementById('monto').value = '';
+            showToast('success', 'Operación registrada');
+            renderDashboard();
+        }
+
+        function renderDashboard() {
+            const list = document.getElementById('tx-list');
+            const hoy = new Date().toLocaleDateString('es-CU');
+            let ing = 0, gas = 0;
+            const total = txs.reduce((a, b) => a + b.val, config.initialBalance);
+
+            list.innerHTML = '';
+            txs.forEach(t => {
+                if(t.date === hoy) {
+                    if(t.val > 0) ing += t.val; else gas += Math.abs(t.val);
+                    const isPos = t.val > 0;
+                    const el = document.createElement('div');
+                    el.className = "flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm gap-4";
+                    el.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center font-black text-xs ${isPos ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">${t.cat[0]}</div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">${t.desc}</h4>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${t.cat} • ${t.time}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between sm:justify-end gap-4">
+                            <span class="font-black text-sm ${isPos ? 'text-green-600' : 'text-red-600'}">${format(t.val)}</span>
+                            <div class="flex gap-2">
+                                <!-- BOTÓN WHATSAPP -->
+                                <button onclick="sendWhatsApp('${t.id}')" title="Enviar por WhatsApp" class="action-btn bg-green-500 text-white hover:bg-green-600 shadow-md">
+                                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.246 2.248 3.484 5.232 3.484 8.412 0 6.556-5.338 11.892-11.893 11.892-1.997-.001-3.951-.5-5.688-1.448l-6.309 1.656zm6.29-4.131l.353.21c1.511.896 3.253 1.369 5.035 1.37h.005c5.783 0 10.486-4.704 10.488-10.488.001-2.802-1.09-5.436-3.072-7.419-1.981-1.983-4.615-3.074-7.415-3.074-5.783 0-10.486 4.704-10.488 10.488-.001 1.95.512 3.854 1.484 5.53l.231.399-1.127 4.116 4.223-1.107zm12.316-6.73c-.302-.151-1.785-.882-2.063-.982-.277-.101-.48-.151-.681.151-.202.302-.782.982-.958 1.183-.176.202-.352.227-.654.076-.302-.151-1.276-.47-2.431-1.5-.899-.803-1.505-1.794-1.682-2.097-.176-.302-.018-.465.133-.615.135-.135.302-.352.453-.529.151-.176.202-.302.302-.504.101-.202.05-.378-.026-.529-.075-.151-.681-1.637-.933-2.243-.245-.591-.495-.511-.681-.521-.176-.008-.378-.01-.58-.01-.202 0-.529.076-.806.378-.277.302-1.058 1.033-1.058 2.52s1.083 2.922 1.233 3.123c.151.202 2.132 3.256 5.166 4.562.721.311 1.284.497 1.723.637.724.23 1.383.197 1.903.12.58-.086 1.785-.73 2.038-1.436.252-.705.252-1.309.176-1.436-.076-.126-.277-.202-.58-.353z"/></svg>
+                                </button>
+                                <!-- BOTÓN FACTURA -->
+                                <button onclick="printInvoice('${t.id}')" title="Ver Factura PDF" class="action-btn bg-blue-600 text-white hover:bg-blue-700 shadow-md">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                </button>
+                                <!-- BOTÓN BORRAR -->
+                                <button onclick="deleteTx('${t.id}')" title="Eliminar Registro" class="action-btn bg-red-600 text-white hover:bg-red-700 shadow-md">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            </div>
+                        </div>`;
+                    list.appendChild(el);
+                }
+            });
+
+            if(!list.innerHTML) list.innerHTML = `<p class="text-center py-10 text-slate-300 font-bold text-[9px] uppercase italic">Sin actividad registrada hoy</p>`;
+
+            document.getElementById('saldo-box').innerText = format(total);
+            document.getElementById('mob-saldo').innerText = format(total);
+            document.getElementById('ingresos-hoy').innerText = format(ing);
+            document.getElementById('gastos-hoy').innerText = format(gas);
+        }
+
+        function format(n) {
+            const absN = Math.abs(n);
+            const val = Number.isInteger(absN) ? absN : absN.toFixed(2);
+            return `$${val}`;
+        }
+
+        function deleteTx(id) {
+            txs = txs.filter(t => t.id !== id);
+            localStorage.setItem('versat_pro_txs', JSON.stringify(txs));
+            renderDashboard();
+            showToast('success', 'Registro eliminado correctamente');
+        }
+
+        function printInvoice(id) {
+            const t = txs.find(x => x.id === id);
+            if(!t) return;
+            
+            document.getElementById('print-date').innerText = t.date;
+            document.getElementById('print-time').innerText = t.time;
+            document.getElementById('print-id').innerText = t.id;
+            document.getElementById('print-cat').innerText = t.cat;
+            document.getElementById('print-desc').innerText = t.desc;
+            document.getElementById('print-val').innerText = format(t.val);
+            
+            window.print();
+        }
+
+        async function sendWhatsApp(id) {
+            const t = txs.find(x => x.id === id);
+            if (!t) { showToast('error', 'Registro no encontrado'); return; }
+
+            const fallbackText = `📜 VERSAT PRO - RECIBO DIGITAL\n\nID: ${t.id}\nFecha: ${t.date} (${t.time})\nCategoría: ${t.cat}\nDetalle: ${t.desc}\nTotal: ${format(t.val)}\n\n¡Gracias por su gestión!`;
+
+            try {
+                const receiptEl = buildReceiptElement(t);
+
+                const canvas = await html2canvas(receiptEl, { backgroundColor: '#ffffff', scale: 2 });
+
+                // 3) Obtener Blob PNG
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.95));
+
+                // Remover elemento temporal
+                receiptEl.remove();
+
+                // 4) Intento: Web Share API con archivo (móviles modernos)
+                const file = new File([blob], `${t.id}.png`, { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        text: `Recibo ${t.id} - Versat Pro`
+                    });
+                    showToast('success', 'Compartido con la app seleccionada');
+                    return;
+                }
+
+                if (navigator.clipboard && navigator.clipboard.write) {
+                    try {
+                        const clipboardItem = new ClipboardItem({ 'image/png': blob });
+                        await navigator.clipboard.write([clipboardItem]);
+                        window.open('https://web.whatsapp.com/', '_blank');
+                        showToast('success', 'Imagen copiada al portapapeles. Abre WhatsApp Web y pega (Ctrl+V)');
+                        return;
+                    } catch (errClipboard) {
+                        console.warn('Clipboard write falló:', errClipboard);
+                    }
+                }
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${t.id}.png`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+                window.open(`https://wa.me/?text=${encodeURIComponent(fallbackText)}`, '_blank');
+                showToast('success', 'Imagen descargada. Adjuntala manualmente en WhatsApp.');
+
+            } catch (err) {
+                console.error('Error generando/compartiendo imagen:', err);
+                window.open(`https://wa.me/?text=${encodeURIComponent(fallbackText)}`, '_blank');
+                showToast('error', 'No se pudo compartir la imagen — abriendo chat con texto');
+            }
+        }
+
+        function buildReceiptElement(t) {
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'fixed';
+            wrapper.style.left = '-9999px';
+            wrapper.style.top = '0';
+            wrapper.style.background = '#ffffff';
+            wrapper.style.padding = '20px';
+            wrapper.style.width = '600px';
+            wrapper.style.boxSizing = 'border-box';
+            wrapper.style.fontFamily = "Plus Jakarta Sans, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
+            wrapper.style.color = '#0f172a';
+            wrapper.style.border = '1px solid #e5e7eb';
+            wrapper.style.borderRadius = '12px';
+            wrapper.style.lineHeight = '1.2';
+
+            wrapper.innerHTML = `
+                <div style="text-align:center; margin-bottom:12px;">
+                    <div style="font-weight:800; font-size:20px;">VERSAT PRO - RECIBO</div>
+                    <div style="font-size:12px; color:#6b7280; margin-top:4px;">Control de Operaciones</div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:12px;">
                     <div>
-                        <h4 class="font-bold text-slate-800 text-sm">${t.desc}</h4>
-                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${t.cat} • ${t.time}</p>
+                        <div style="font-weight:700;">Fecha</div>
+                        <div style="color:#374151;">${t.date}</div>
+                        <div style="color:#374151;">${t.time}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700;">ID</div>
+                        <div style="color:#374151;">${t.id}</div>
                     </div>
                 </div>
-                <div class="flex items-center justify-between sm:justify-end gap-4">
-                    <span class="font-black text-sm ${isPos ? 'text-green-600' : 'text-red-600'}">${format(t.val)}</span>
-                    <div class="flex gap-2">
-                        <button onclick="sendWhatsApp('${t.id}')" title="Enviar por WhatsApp" class="action-btn bg-green-500 text-white hover:bg-green-600 shadow-md">...</button>
-                        <button onclick="printInvoice('${t.id}')" title="Ver Factura PDF" class="action-btn bg-blue-600 text-white hover:bg-blue-700 shadow-md">...</button>
-                        <button onclick="deleteTx('${t.id}')" title="Eliminar Registro" class="action-btn bg-red-600 text-white hover:bg-red-700 shadow-md">...</button>
+
+                <div style="border-top:1px dashed #e5e7eb; margin-top:8px; padding-top:10px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <div style="font-size:12px; color:#6b7280;">Categoría</div>
+                        <div style="font-weight:700;">${t.cat}</div>
                     </div>
-                </div>`;
-            list.appendChild(el);
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <div style="font-size:12px; color:#6b7280;">Detalle</div>
+                        <div style="font-weight:700;">${escapeHtml(t.desc)}</div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid #f3f4f6;">
+                        <div style="font-weight:800; font-size:14px;">Total</div>
+                        <div style="font-weight:900; font-size:18px; color:${t.val > 0 ? '#059669' : '#dc2626'};">${format(t.val)}</div>
+                    </div>
+                </div>
+
+                <div style="text-align:center; margin-top:14px; font-size:12px; color:#6b7280;">
+                    ¡Gracias por su gestión!
+                </div>
+            `;
+
+            document.body.appendChild(wrapper);
+            return wrapper;
         }
-    });
 
-    if(!list.innerHTML) list.innerHTML = `<p class="text-center py-10 text-slate-300 font-bold text-[9px] uppercase italic">Sin actividad registrada hoy</p>`;
+        function escapeHtml(text) {
+            return (''+text).replace(/[&<>"']/g, function(m) {
+                return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+            });
+        }
 
-    const saldoBox = document.getElementById('saldo-box');
-    if (saldoBox) saldoBox.innerText = format(total);
-    const mobSaldo = document.getElementById('mob-saldo');
-    if (mobSaldo) mobSaldo.innerText = format(total);
-    const ingEl = document.getElementById('ingresos-hoy');
-    if (ingEl) ingEl.innerText = format(ing);
-    const gasEl = document.getElementById('gastos-hoy');
-    if (gasEl) gasEl.innerText = format(gas);
-}
+        function renderReports() {
+            const hoy = new Date().toLocaleDateString('es-CU');
+            const dataHoy = txs.filter(t => t.date === hoy);
+            const ing = dataHoy.filter(t => t.val > 0).reduce((a,b) => a + b.val, 0);
+            const gas = dataHoy.filter(t => t.val < 0).reduce((a,b) => a + Math.abs(b.val), 0);
 
-function format(n) {
-    const absN = Math.abs(n);
-    const val = Number.isInteger(absN) ? absN : absN.toFixed(2);
-    return `$${val}`;
-}
+            document.getElementById('rep-utilidad').innerText = format(ing - gas);
+            document.getElementById('rep-date').innerText = hoy;
+            document.getElementById('rep-sinicial').innerText = format(config.initialBalance);
+            document.getElementById('rep-tingresos').innerText = `+${format(ing)}`;
+            document.getElementById('rep-tegresos').innerText = `-${format(gas)}`;
+            document.getElementById('rep-sfinal').innerText = format(config.initialBalance + (ing - gas));
+        }
 
-function deleteTx(id) {
-    txs = txs.filter(t => t.id !== id);
-    localStorage.setItem('versat_pro_txs', JSON.stringify(txs));
-    renderDashboard();
-    showToast('success', 'Registro eliminado correctamente');
-}
+        function exportData() {
+            const blob = new Blob([JSON.stringify({txs, config}, null, 2)], {type:'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Versat_Pro_Backup.json`;
+            a.click();
+            showToast('success', 'Backup descargado');
+        }
 
-function printInvoice(id) {
-    const t = txs.find(x => x.id === id);
-    if(!t) return;
-    
-    document.getElementById('print-date').innerText = t.date || '';
-    document.getElementById('print-time').innerText = t.time || '';
-    document.getElementById('print-id').innerText = t.id || '';
-    document.getElementById('print-cat').innerText = t.cat || '';
-    document.getElementById('print-desc').innerText = t.desc || '';
-    document.getElementById('print-val').innerText = format(t.val);
-    
-    window.print();
-}
+        function importData(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const d = JSON.parse(ev.target.result);
+                    txs = d.txs || []; 
+                    config = d.config || { initialBalance: 0 };
+                    localStorage.setItem('versat_pro_txs', JSON.stringify(txs));
+                    localStorage.setItem('versat_pro_config', JSON.stringify(config));
+                    renderDashboard();
+                    showToast('success', 'Datos restaurados con éxito');
+                } catch (err) {
+                    showToast('error', 'El archivo no es válido');
+                }
+            };
+            reader.readAsText(file);
+        }
 
-// sendWhatsApp, buildReceiptElement, renderReports, exportData, importData
-// (kept as in original file — omitted here for brevity but present above in the previous assistant message)
-
-</script>
-
-<script>
-/* ---------------------------
-  AUTH SCRIPT: blocks app until valid email from users.json logs in.
-  - No signup UI.
-  - No logout button (per your request).
-  - users.json must be in same folder; fallback to two example emails if fetch fails.
-----------------------------*/
-
-const USERS_JSON = 'users.json';
-
-// small helper toast (uses existing showToast if available)
-function authToast(msg, type='info') {
-  try { showToast(type === 'error' ? 'error' : 'success', msg); } catch (e) {
-    // fallback
-    const c = document.getElementById('toast-container');
-    const el = document.createElement('div');
-    el.className = 'px-3 py-2 rounded shadow';
-    el.style.background = type === 'error' ? '#fee2e2' : '#e0f2fe';
-    el.style.color = type === 'error' ? '#991b1b' : '#0369a1';
-    el.textContent = msg;
-    c.appendChild(el);
-    setTimeout(()=>el.remove(),3000);
-  }
-}
-
-async function loadUsers() {
-  try {
-    const res = await fetch(USERS_JSON + '?v=' + Date.now());
-    if (res.ok) {
-      const users = await res.json();
-      if (Array.isArray(users)) return users;
-    }
-  } catch (e) {
-    console.warn('users.json fetch failed', e);
-  }
-  // fallback default users (for testing)
-  return [
-    { id: 'U1', email: 'admin@example.com', name: 'Admin User', role: 'admin' },
-    { id: 'U2', email: 'vendedor@example.com', name: 'Vendedor José', role: 'user' }
-  ];
-}
-
-function showLogin() {
-  document.getElementById('login-modal').classList.remove('hidden');
-  document.getElementById('login-modal').classList.add('flex');
-  setTimeout(()=> document.getElementById('login-email').focus(),50);
-}
-
-function hideLogin() {
-  document.getElementById('login-modal').classList.add('hidden');
-  document.getElementById('login-modal').classList.remove('flex');
-}
-
-function revealAppFor(user) {
-  // Show UI elements
-  document.getElementById('sidebar').classList.remove('hidden');
-  document.getElementById('mobile-header').classList.remove('hidden');
-  document.getElementById('app-main').classList.remove('hidden');
-  document.getElementById('mobile-nav').classList.remove('hidden');
-
-  // store session
-  localStorage.setItem('vp_user_email', user.email);
-
-  // initialize app UI
-  try { updateButtons(); renderDashboard(); } catch (e) { console.warn(e); }
-
-  authToast('Sesión iniciada: ' + (user.name || user.email));
-  hideLogin();
-}
-
-(async function authInit() {
-  const users = await loadUsers();
-
-  // auto-login if stored and valid
-  const stored = (localStorage.getItem('vp_user_email') || '').toLowerCase();
-  if (stored) {
-    const found = users.find(u => (u.email||'').toLowerCase() === stored);
-    if (found) {
-      revealAppFor(found);
-      return;
-    } else {
-      localStorage.removeItem('vp_user_email');
-    }
-  }
-
-  // show login modal
-  showLogin();
-
-  document.getElementById('login-btn').addEventListener('click', async () => {
-    const email = (document.getElementById('login-email').value || '').trim().toLowerCase();
-    const fb = document.getElementById('login-feedback');
-    fb.textContent = '';
-    if (!email) { fb.textContent = 'Ingresa un email válido'; return; }
-    // re-load users (fresh)
-    const usersNow = await loadUsers();
-    const found = usersNow.find(u => (u.email || '').toLowerCase() === email);
-    if (found) {
-      revealAppFor(found);
-    } else {
-      fb.textContent = 'Email no registrado. Agrega el email en users.json y recarga.';
-      authToast('Email no encontrado', 'error');
-    }
-  });
-
-})();
-</script>
-
-</body>
-</html>
+        updateButtons();
+        renderDashboard();
+    </script>
+</body> 
+                                    </html>
